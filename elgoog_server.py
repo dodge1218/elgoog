@@ -92,13 +92,14 @@ CONTEXT_BUDGETS = {
     "small": {
         "readme_chars": 2500,
         "manifest_chars": 1500,
-        "todo_lines": 15,
-        "commit_lines": 4,
-        "diffstat_chars": 1000,
+        "todo_lines": 0,
+        "commit_lines": 2,
+        "diffstat_chars": 0,
         "entrypoints": 10,
         "file_list": 40,
         "github_readme_chars": 3000,
         "github_file_lines": 15,
+        "include_git_status": False,
     },
     "medium": {
         "readme_chars": MAX_README_CHARS,
@@ -110,6 +111,7 @@ CONTEXT_BUDGETS = {
         "file_list": MAX_FILE_LIST,
         "github_readme_chars": MAX_GITHUB_README_CHARS,
         "github_file_lines": MAX_GITHUB_FILE_LINES,
+        "include_git_status": True,
     },
     "large": {
         "readme_chars": 12000,
@@ -121,6 +123,7 @@ CONTEXT_BUDGETS = {
         "file_list": 240,
         "github_readme_chars": 16000,
         "github_file_lines": 80,
+        "include_git_status": True,
     },
 }
 
@@ -211,6 +214,8 @@ def _repo_manifest_excerpt(repo_path: Path, budget_name: str) -> str:
 
 def _repo_todo_excerpt(repo_path: Path, budget_name: str) -> str:
     budget = _budget(budget_name)
+    if budget["todo_lines"] <= 0:
+        return ""
     output = _run_capture(
         [
             "rg",
@@ -246,6 +251,8 @@ def _repo_recent_commits(repo_path: Path, budget_name: str) -> str:
 
 def _repo_diffstat(repo_path: Path, budget_name: str) -> str:
     budget = _budget(budget_name)
+    if budget["diffstat_chars"] <= 0:
+        return ""
     output = _run_capture(["git", "diff", "--stat"], repo_path)
     if not output:
         return ""
@@ -315,7 +322,7 @@ def _repo_context(repo_path: Path, budget_name: str = "medium") -> str:
     git_root = (repo_path / ".git").exists()
     if git_root:
         branch = _run_capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], repo_path)
-        status = _run_capture(["git", "status", "--short"], repo_path)
+        status = _run_capture(["git", "status", "--short"], repo_path) if budget["include_git_status"] else ""
         commits = _repo_recent_commits(repo_path, budget_name)
         diffstat = _repo_diffstat(repo_path, budget_name)
         if branch:

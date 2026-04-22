@@ -116,7 +116,10 @@ Output exactly these sections:
 
 Rules:
 - anchor claims to the supplied material
+- prefer code structure, entrypoints, manifests, open markers, and working state over marketing language
+- if README language conflicts with code or repo shape, trust the code/repo shape more
 - mention files, commands, or modules when available
+- keep each section short and ranked
 - avoid filler and broad software essay language
 - do not describe yourself
 - do not restate the prompt
