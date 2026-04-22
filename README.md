@@ -27,7 +27,6 @@ The product is not trying to be a general AI cockpit.
 
 ## What it is not
 
-- not RyanClaw
 - not a multi-provider control plane
 - not a mission-control dashboard
 - not a background agent fleet manager
@@ -238,9 +237,12 @@ Still missing before a serious public release:
 - broader GitHub integration
 - production hardening
 
-## Relationship to RyanClaw
+## Integration posture
 
-- `RyanClaw` = model-agnostic control plane
-- `Elgoog` = Gemini-native worker/workbench
+Elgoog is designed to stand on its own.
 
-RyanClaw may call Elgoog later. Elgoog should still make sense on its own.
+If another orchestrator wants to call it later, the boundary should stay simple:
+
+- durable inputs in
+- classified Gemini run out
+- file-backed artifacts on disk

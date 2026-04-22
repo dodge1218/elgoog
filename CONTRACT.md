@@ -25,16 +25,16 @@ Status values:
 - `busy`
 - `dry_run`
 
-## RyanClaw integration
+## External orchestrator integration
 
-RyanClaw should call Elgoog as an external worker when:
+Another orchestrator should call Elgoog as an external worker when:
 - task is wide
 - task is repetitive
 - task benefits from cheap Gemini extraction
 - slot rotation matters
 - the output should be an artifact, not an in-band chat answer
 
-RyanClaw should retain:
+The external orchestrator should retain:
 - routing
 - context/memory discipline
 - workflow state
