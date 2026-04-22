@@ -205,12 +205,18 @@ elgoog plan --text "Turn this release context into a bounded plan." --slot gemin
 Repo and GitHub inputs:
 
 ```bash
-elgoog understand --repo . --slot gemini_slot_1 --json
+elgoog understand --repo . --slot gemini_slot_1 --context-budget small --json
 
-elgoog recover --repo . --slot gemini_slot_1 --json
+elgoog recover --repo . --slot gemini_slot_1 --context-budget medium --json
 
-elgoog understand --github https://github.com/google-gemini/gemini-cli --slot gemini_slot_1 --json
+elgoog understand --github https://github.com/google-gemini/gemini-cli --slot gemini_slot_1 --context-budget large --json
 ```
+
+Context budget:
+
+- `small`: tight first pass, less repo/context included
+- `medium`: default
+- `large`: wider context when the task genuinely needs it
 
 Dry run:
 

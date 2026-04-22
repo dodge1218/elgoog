@@ -88,6 +88,42 @@ MAX_ENTRYPOINTS = 20
 MAX_GITHUB_README_CHARS = 8000
 MAX_GITHUB_FILE_LINES = 40
 
+CONTEXT_BUDGETS = {
+    "small": {
+        "readme_chars": 2500,
+        "manifest_chars": 1500,
+        "todo_lines": 15,
+        "commit_lines": 4,
+        "diffstat_chars": 1000,
+        "entrypoints": 10,
+        "file_list": 40,
+        "github_readme_chars": 3000,
+        "github_file_lines": 15,
+    },
+    "medium": {
+        "readme_chars": MAX_README_CHARS,
+        "manifest_chars": MAX_MANIFEST_CHARS,
+        "todo_lines": MAX_TODO_LINES,
+        "commit_lines": MAX_COMMIT_LINES,
+        "diffstat_chars": MAX_DIFFSTAT_CHARS,
+        "entrypoints": MAX_ENTRYPOINTS,
+        "file_list": MAX_FILE_LIST,
+        "github_readme_chars": MAX_GITHUB_README_CHARS,
+        "github_file_lines": MAX_GITHUB_FILE_LINES,
+    },
+    "large": {
+        "readme_chars": 12000,
+        "manifest_chars": 6000,
+        "todo_lines": 80,
+        "commit_lines": 16,
+        "diffstat_chars": 5000,
+        "entrypoints": 40,
+        "file_list": 240,
+        "github_readme_chars": 16000,
+        "github_file_lines": 80,
+    },
+}
+
 
 def json_response(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
     body = json.dumps(payload).encode("utf-8")
@@ -151,7 +187,12 @@ def _sha256_text(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def _repo_manifest_excerpt(repo_path: Path) -> str:
+def _budget(name: str) -> dict:
+    return CONTEXT_BUDGETS.get(name, CONTEXT_BUDGETS["medium"])
+
+
+def _repo_manifest_excerpt(repo_path: Path, budget_name: str) -> str:
+    budget = _budget(budget_name)
     candidates = (
         "package.json",
         "pyproject.toml",
@@ -164,17 +205,18 @@ def _repo_manifest_excerpt(repo_path: Path) -> str:
     for name in candidates:
         path = repo_path / name
         if path.exists():
-            parts.append(f"{name}:\n{_read_file_excerpt(path, MAX_MANIFEST_CHARS)}")
+            parts.append(f"{name}:\n{_read_file_excerpt(path, budget['manifest_chars'])}")
     return "\n\n".join(parts).strip()
 
 
-def _repo_todo_excerpt(repo_path: Path) -> str:
+def _repo_todo_excerpt(repo_path: Path, budget_name: str) -> str:
+    budget = _budget(budget_name)
     output = _run_capture(
         [
             "rg",
             "-n",
             "-m",
-            str(MAX_TODO_LINES),
+            str(budget["todo_lines"]),
             "(TODO|FIXME|HACK|XXX|BUG)",
             str(repo_path),
         ],
@@ -182,15 +224,16 @@ def _repo_todo_excerpt(repo_path: Path) -> str:
     )
     if not output:
         return ""
-    return "\n".join(output.splitlines()[:MAX_TODO_LINES]).strip()
+    return "\n".join(output.splitlines()[: budget["todo_lines"]]).strip()
 
 
-def _repo_recent_commits(repo_path: Path) -> str:
+def _repo_recent_commits(repo_path: Path, budget_name: str) -> str:
+    budget = _budget(budget_name)
     output = _run_capture(
         [
             "git",
             "log",
-            f"-{MAX_COMMIT_LINES}",
+            f"-{budget['commit_lines']}",
             "--pretty=format:%h %ad %s",
             "--date=short",
         ],
@@ -198,17 +241,19 @@ def _repo_recent_commits(repo_path: Path) -> str:
     )
     if not output:
         return ""
-    return "\n".join(output.splitlines()[:MAX_COMMIT_LINES]).strip()
+    return "\n".join(output.splitlines()[: budget["commit_lines"]]).strip()
 
 
-def _repo_diffstat(repo_path: Path) -> str:
+def _repo_diffstat(repo_path: Path, budget_name: str) -> str:
+    budget = _budget(budget_name)
     output = _run_capture(["git", "diff", "--stat"], repo_path)
     if not output:
         return ""
-    return output[:MAX_DIFFSTAT_CHARS].strip()
+    return output[: budget["diffstat_chars"]].strip()
 
 
-def _repo_entrypoints(repo_path: Path) -> str:
+def _repo_entrypoints(repo_path: Path, budget_name: str) -> str:
+    budget = _budget(budget_name)
     candidates = [
         "src/index.ts",
         "src/main.ts",
@@ -230,7 +275,7 @@ def _repo_entrypoints(repo_path: Path) -> str:
         path = repo_path / relative
         if path.exists():
             found.append(relative)
-    if len(found) < MAX_ENTRYPOINTS:
+    if len(found) < budget["entrypoints"]:
         files_output = _run_capture(
             [
                 "rg",
@@ -255,14 +300,15 @@ def _repo_entrypoints(repo_path: Path) -> str:
             line = line.strip()
             if line and line not in found:
                 found.append(line)
-            if len(found) >= MAX_ENTRYPOINTS:
+            if len(found) >= budget["entrypoints"]:
                 break
     if not found:
         return ""
-    return "\n".join(found[:MAX_ENTRYPOINTS]).strip()
+    return "\n".join(found[: budget["entrypoints"]]).strip()
 
 
-def _repo_context(repo_path: Path) -> str:
+def _repo_context(repo_path: Path, budget_name: str = "medium") -> str:
+    budget = _budget(budget_name)
     if not repo_path.exists() or not repo_path.is_dir():
         return f"[Repo path missing: {repo_path}]"
     parts: list[str] = [f"Repo path: {repo_path}"]
@@ -270,8 +316,8 @@ def _repo_context(repo_path: Path) -> str:
     if git_root:
         branch = _run_capture(["git", "rev-parse", "--abbrev-ref", "HEAD"], repo_path)
         status = _run_capture(["git", "status", "--short"], repo_path)
-        commits = _repo_recent_commits(repo_path)
-        diffstat = _repo_diffstat(repo_path)
+        commits = _repo_recent_commits(repo_path, budget_name)
+        diffstat = _repo_diffstat(repo_path, budget_name)
         if branch:
             parts.append(f"\nGit branch:\n{branch}")
         if status:
@@ -287,18 +333,18 @@ def _repo_context(repo_path: Path) -> str:
             readme = candidate
             break
     if readme:
-        parts.append(f"\nREADME excerpt:\n{_read_file_excerpt(readme, MAX_README_CHARS)}")
-    manifest_excerpt = _repo_manifest_excerpt(repo_path)
+        parts.append(f"\nREADME excerpt:\n{_read_file_excerpt(readme, budget['readme_chars'])}")
+    manifest_excerpt = _repo_manifest_excerpt(repo_path, budget_name)
     if manifest_excerpt:
         parts.append(f"\nProject manifests:\n{manifest_excerpt}")
-    entrypoints = _repo_entrypoints(repo_path)
+    entrypoints = _repo_entrypoints(repo_path, budget_name)
     if entrypoints:
         parts.append(f"\nLikely entrypoints and key files:\n{entrypoints}")
-    todo_excerpt = _repo_todo_excerpt(repo_path)
+    todo_excerpt = _repo_todo_excerpt(repo_path, budget_name)
     if todo_excerpt:
         parts.append(f"\nOpen markers:\n{todo_excerpt}")
     files_output = _run_capture(["rg", "--files", str(repo_path)], repo_path)
-    files = [line.strip() for line in files_output.splitlines() if line.strip()][:MAX_FILE_LIST]
+    files = [line.strip() for line in files_output.splitlines() if line.strip()][: budget["file_list"]]
     if files:
         parts.append("\nRepo file sample:\n" + "\n".join(files))
     return "\n".join(parts).strip()
@@ -317,7 +363,8 @@ def _parse_github_repo_url(repo_url: str) -> tuple[str, str] | None:
     return owner, repo
 
 
-def _github_repo_context(repo_url: str) -> str:
+def _github_repo_context(repo_url: str, budget_name: str = "medium") -> str:
+    budget = _budget(budget_name)
     parsed = _parse_github_repo_url(repo_url)
     if not parsed:
         return f"[Invalid GitHub repo URL: {repo_url}]"
@@ -337,14 +384,14 @@ def _github_repo_context(repo_url: str) -> str:
     if isinstance(readme_data, dict):
         download_url = readme_data.get("download_url")
         if download_url:
-            readme_text = _fetch_text(download_url, MAX_GITHUB_README_CHARS)
+            readme_text = _fetch_text(download_url, budget["github_readme_chars"])
             if readme_text:
                 parts.append(f"\nREADME excerpt:\n{readme_text}")
     contents_api = f"{repo_api}/contents"
     contents = _fetch_json(contents_api)
     if isinstance(contents, list):
         sample = []
-        for item in contents[:MAX_GITHUB_FILE_LINES]:
+        for item in contents[: budget["github_file_lines"]]:
             item_type = item.get("type", "file")
             name = item.get("name", "")
             if name:
@@ -354,7 +401,7 @@ def _github_repo_context(repo_url: str) -> str:
     return "\n".join(parts).strip()
 
 
-def _source_manifest(user_task: str, file_path: str, repo_path: str, github_repo_url: str, prompt_text: str, resolved_text: str) -> dict:
+def _source_manifest(user_task: str, file_path: str, repo_path: str, github_repo_url: str, prompt_text: str, resolved_text: str, context_budget: str = "medium") -> dict:
     sources = []
     if file_path.strip():
         sources.append({"kind": "file", "path": file_path.strip()})
@@ -375,6 +422,7 @@ def _source_manifest(user_task: str, file_path: str, repo_path: str, github_repo
     return {
         "timestamp": now_iso(),
         "task": user_task,
+        "context_budget": context_budget,
         "source_mode": source_mode,
         "sources": sources,
         "prompt_chars": len(prompt_text.strip()),
@@ -397,7 +445,7 @@ def _write_run_record(stem: str, payload: dict) -> Path:
     return path
 
 
-def build_run_text(task: str, text: str, file_path: str, repo_path: str, github_repo_url: str) -> str:
+def build_run_text(task: str, text: str, file_path: str, repo_path: str, github_repo_url: str, context_budget: str = "medium") -> str:
     parts: list[str] = []
     instruction = TASK_INSTRUCTIONS.get(task)
     if instruction:
@@ -409,9 +457,9 @@ def build_run_text(task: str, text: str, file_path: str, repo_path: str, github_
         parts.append(f"Imported file: {path}\n{_read_file_excerpt(path)}")
     if repo_path.strip():
         path = Path(repo_path).expanduser()
-        parts.append(_repo_context(path))
+        parts.append(_repo_context(path, context_budget))
     if github_repo_url.strip():
-        parts.append(_github_repo_context(github_repo_url))
+        parts.append(_github_repo_context(github_repo_url, context_budget))
     return "\n\n".join(part for part in parts if part).strip()
 
 
@@ -531,8 +579,9 @@ class ElgoogHandler(BaseHTTPRequestHandler):
         file_path = str(payload.get("file_path") or "").strip()
         repo_path = str(payload.get("repo_path") or "").strip()
         github_repo_url = str(payload.get("github_repo_url") or "").strip()
-        run_text = build_run_text(user_task, text, file_path, repo_path, github_repo_url)
-        source_manifest = _source_manifest(user_task, file_path, repo_path, github_repo_url, text, run_text)
+        context_budget = str(payload.get("context_budget") or "medium").strip()
+        run_text = build_run_text(user_task, text, file_path, repo_path, github_repo_url, context_budget)
+        source_manifest = _source_manifest(user_task, file_path, repo_path, github_repo_url, text, run_text, context_budget)
         slot = str(payload.get("slot") or "gemini_slot_1")
         dry_run = bool(payload.get("dry_run", True))
         cmd = [
@@ -562,6 +611,7 @@ class ElgoogHandler(BaseHTTPRequestHandler):
         data["input_file_path"] = file_path or None
         data["input_repo_path"] = repo_path or None
         data["input_github_repo_url"] = github_repo_url or None
+        data["context_budget"] = context_budget
         data["source_mode"] = source_manifest["source_mode"]
         data["resolved_input_sha256"] = source_manifest["resolved_input_sha256"]
         data["resolved_input_chars"] = len(run_text)
@@ -582,6 +632,7 @@ class ElgoogHandler(BaseHTTPRequestHandler):
             "input_file_path": file_path or None,
             "input_repo_path": repo_path or None,
             "input_github_repo_url": github_repo_url or None,
+            "context_budget": context_budget,
             "resolved_input_sha256": source_manifest["resolved_input_sha256"],
             "resolved_input_chars": len(run_text),
         }

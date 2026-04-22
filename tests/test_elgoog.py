@@ -101,16 +101,23 @@ class ParserTests(unittest.TestCase):
 
     def test_understand_parser_accepts_repo(self) -> None:
         parser = elgoog.build_parser()
-        args = parser.parse_args(["understand", "--repo", ".", "--slot", "work"])
+        args = parser.parse_args(["understand", "--repo", ".", "--slot", "work", "--context-budget", "small"])
         self.assertEqual(args.command, "understand")
         self.assertEqual(args.repo, ".")
         self.assertEqual(args.slot, "work")
+        self.assertEqual(args.context_budget, "small")
 
     def test_run_parser_accepts_github(self) -> None:
         parser = elgoog.build_parser()
         args = parser.parse_args(["run", "--github", "https://github.com/google-gemini/gemini-cli", "--task-class", "classification", "--dry-run"])
         self.assertEqual(args.command, "run")
         self.assertEqual(args.github, "https://github.com/google-gemini/gemini-cli")
+
+    def test_plan_parser_accepts_large_context_budget(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["plan", "--text", "release notes", "--context-budget", "large"])
+        self.assertEqual(args.command, "plan")
+        self.assertEqual(args.context_budget, "large")
 
 
 if __name__ == "__main__":

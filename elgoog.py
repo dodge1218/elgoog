@@ -85,6 +85,77 @@ Output concise markdown.
 """.strip(),
 }
 
+TASK_SYSTEM_PROMPTS = {
+    "recover_work": """
+You are a developer workbench assistant.
+Reconstruct in-flight work from the supplied material.
+
+Output exactly these sections:
+## Current state
+## Likely stale or half-finished work
+## Blockers or missing context
+## Next 3 bounded tasks
+
+Rules:
+- be specific to the provided material
+- prefer concrete file names, commands, or code areas when available
+- do not describe yourself
+- do not restate the prompt
+- do not give generic productivity advice
+""".strip(),
+    "understand_repo": """
+You are a developer workbench assistant.
+Brief a developer on a repo, codebase, or project context.
+
+Output exactly these sections:
+## What this repo appears to do
+## Likely moving parts
+## Likely entrypoints
+## Current risk or confusion areas
+## What to inspect next
+
+Rules:
+- anchor claims to the supplied material
+- mention files, commands, or modules when available
+- avoid filler and broad software essay language
+- do not describe yourself
+- do not restate the prompt
+""".strip(),
+    "create_todos": """
+You are a developer workbench assistant.
+Turn the supplied material into bounded developer TODOs.
+
+Output exactly these sections:
+## Summary
+## Priority TODOs
+## Missing information
+
+Rules:
+- each TODO should be specific and shippable
+- prefer short imperative phrasing
+- avoid abstract backlog language
+- do not describe yourself
+- do not restate the prompt
+""".strip(),
+    "plan_next_steps": """
+You are a developer workbench assistant.
+Turn the supplied material into a bounded execution plan.
+
+Output exactly these sections:
+## Goal
+## Next 3 bounded tasks
+## Constraints
+## Risks
+
+Rules:
+- stay specific to the supplied material
+- keep tasks concrete and sequential when possible
+- avoid generic planning language
+- do not describe yourself
+- do not restate the prompt
+""".strip(),
+}
+
 QUOTA_MARKERS = ("resource_exhausted", "quota", "429", "rate_limit")
 TRANSIENT_MARKERS = ("503", "504", "timed out", "temporarily unavailable", "service unavailable", "unavailable", "deadline exceeded")
 BANNER = r"""
@@ -533,12 +604,14 @@ def command_run(args: argparse.Namespace) -> None:
     file_path = str(getattr(args, "file", "") or "").strip()
     repo_path = str(getattr(args, "repo", "") or "").strip()
     github_repo_url = str(getattr(args, "github", "") or "").strip()
+    context_budget = str(getattr(args, "context_budget", "") or "medium")
     user_task = str(getattr(args, "user_task", "") or args.task_class)
     if not any([prompt_text, file_path, repo_path, github_repo_url]):
         raise SystemExit("Provide --text, --file, --repo, --github, or stdin.")
     from elgoog_server import build_run_text, _source_manifest, _write_manifest, _write_run_record
-    run_text = build_run_text(user_task, prompt_text, file_path, repo_path, github_repo_url)
-    source_manifest = _source_manifest(user_task, file_path, repo_path, github_repo_url, prompt_text, run_text)
+    run_text = build_run_text(user_task, prompt_text, file_path, repo_path, github_repo_url, context_budget)
+    source_manifest = _source_manifest(user_task, file_path, repo_path, github_repo_url, prompt_text, run_text, context_budget)
+    system_prompt = TASK_SYSTEM_PROMPTS.get(user_task, SYSTEM_PROMPTS[args.task_class])
     try:
         with singleflight(LOCK_PATH):
             if args.dry_run:
@@ -553,6 +626,7 @@ def command_run(args: argparse.Namespace) -> None:
                     "input_file_path": file_path or None,
                     "input_repo_path": repo_path or None,
                     "input_github_repo_url": github_repo_url or None,
+                    "context_budget": context_budget,
                     "source_mode": source_manifest["source_mode"],
                     "resolved_input_sha256": source_manifest["resolved_input_sha256"],
                     "resolved_input_chars": len(run_text),
@@ -584,7 +658,7 @@ def command_run(args: argparse.Namespace) -> None:
                 slots=slots,
                 prompt_text=run_text,
                 model_name=args.model,
-                system_prompt=SYSTEM_PROMPTS[args.task_class],
+                system_prompt=system_prompt,
             )
             slot_used = used_slot or args.slot
             if status == "success" and response_text:
@@ -601,6 +675,7 @@ def command_run(args: argparse.Namespace) -> None:
                 "input_file_path": file_path or None,
                 "input_repo_path": repo_path or None,
                 "input_github_repo_url": github_repo_url or None,
+                "context_budget": context_budget,
                 "source_mode": source_manifest["source_mode"],
                 "resolved_input_sha256": source_manifest["resolved_input_sha256"],
                 "resolved_input_chars": len(run_text),
@@ -632,6 +707,7 @@ def command_run(args: argparse.Namespace) -> None:
                 "input_file_path": file_path or None,
                 "input_repo_path": repo_path or None,
                 "input_github_repo_url": github_repo_url or None,
+                "context_budget": context_budget,
                 "source_mode": source_manifest["source_mode"],
                 "resolved_input_sha256": source_manifest["resolved_input_sha256"],
                 "resolved_input_chars": len(run_text),
@@ -675,6 +751,7 @@ def command_task_alias(args: argparse.Namespace) -> None:
         file=args.file,
         repo=args.repo,
         github=args.github,
+        context_budget=args.context_budget,
         task_class=task_class,
         user_task=user_task_map[args.command],
         slot=args.slot,
@@ -729,6 +806,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--file", help="Input file")
     run.add_argument("--repo", help="Local repo path")
     run.add_argument("--github", help="Public GitHub repo URL")
+    run.add_argument("--context-budget", default="medium", choices=("small", "medium", "large"), help="How much repo/context material to include")
     run.add_argument("--task-class", required=True, choices=sorted(SYSTEM_PROMPTS.keys()))
     run.add_argument("--slot", default="gemini_slot_1", help="Identifier for the Gemini slot/project used")
     run.add_argument("--slots-path", help="Path to slots JSON")
@@ -745,6 +823,7 @@ def build_parser() -> argparse.ArgumentParser:
         task.add_argument("--file", help="Input file")
         task.add_argument("--repo", help="Local repo path")
         task.add_argument("--github", help="Public GitHub repo URL")
+        task.add_argument("--context-budget", default="medium", choices=("small", "medium", "large"), help="How much repo/context material to include")
         task.add_argument("--slot", default="gemini_slot_1", help="Identifier for the Gemini slot/project used")
         task.add_argument("--slots-path", help="Path to slots JSON")
         task.add_argument("--slots-json", default="", help="Inline JSON array of slots")
