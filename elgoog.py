@@ -7,6 +7,8 @@ import fcntl
 import json
 import os
 import sys
+import threading
+import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
@@ -65,10 +67,23 @@ Output dense markdown.
 
 QUOTA_MARKERS = ("resource_exhausted", "quota", "429", "rate_limit")
 TRANSIENT_MARKERS = ("504", "timed out", "temporarily unavailable", "service unavailable", "deadline exceeded")
+BANNER = r"""
+███████╗██╗      ██████╗  ██████╗  ██████╗  ██████╗
+██╔════╝██║     ██╔════╝ ██╔═══██╗██╔═══██╗██╔════╝
+█████╗  ██║     ██║  ███╗██║   ██║██║   ██║██║  ███╗
+██╔══╝  ██║     ██║   ██║██║   ██║██║   ██║██║   ██║
+███████╗███████╗╚██████╔╝╚██████╔╝╚██████╔╝╚██████╔╝
+╚══════╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝  ╚═════╝
+""".strip("\n")
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def print_banner() -> None:
+    print(BANNER)
+    print("Gemini-native developer workbench")
 
 
 def read_text_arg(args: argparse.Namespace) -> str:
@@ -213,10 +228,10 @@ def command_key_url(_: argparse.Namespace) -> None:
     print(KEY_URL)
 
 
-def command_doctor(args: argparse.Namespace) -> None:
+def _doctor_payload(slots_path: Path | None = None, slots_json: str = "") -> dict:
     ensure_dirs()
-    slots_path = Path(args.slots_path).expanduser() if args.slots_path else (STATE_DIR / "slots.json")
-    slots = load_slots(slots_path=slots_path, slots_json=args.slots_json)
+    resolved_slots_path = slots_path if slots_path else (STATE_DIR / "slots.json")
+    slots = load_slots(slots_path=resolved_slots_path, slots_json=slots_json)
     if not slots:
         env_key = os.environ.get("GEMINI_API_KEY", "").strip()
         if env_key:
@@ -233,14 +248,52 @@ def command_doctor(args: argparse.Namespace) -> None:
                 "detail": detail,
             }
         )
-    payload = {
+    return {
         "studio_url": STUDIO_URL,
         "key_url": KEY_URL,
         "slots_available": len(slots),
-        "slots_path": str(slots_path),
+        "slots_path": str(resolved_slots_path),
         "default_model": DEFAULT_MODEL,
         "slots": slot_rows,
     }
+
+
+def command_auth_login(args: argparse.Namespace) -> None:
+    print_banner()
+    print()
+    print("Open the Gemini API key page:")
+    print(KEY_URL)
+    print()
+    print("After creating a key, either:")
+    print(f"- save it in {STATE_DIR / 'slots.json'}")
+    print("- or add it in the Elgoog app slot manager")
+    if not args.no_browser:
+        webbrowser.open(KEY_URL)
+
+
+def command_onboard(args: argparse.Namespace) -> None:
+    print_banner()
+    print()
+    payload = _doctor_payload()
+    print(f"Default model: {payload['default_model']}")
+    print(f"Slots available: {payload['slots_available']}")
+    print(f"Slots path: {payload['slots_path']}")
+    if payload["slots_available"] == 0:
+        print()
+        print("No Gemini slots configured yet.")
+        print(f"Create a key: {KEY_URL}")
+    print()
+    print("Starting local app at http://127.0.0.1:8765")
+    if not args.no_browser:
+        threading.Timer(1.0, lambda: webbrowser.open("http://127.0.0.1:8765")).start()
+    import elgoog_server
+
+    elgoog_server.main()
+
+
+def command_doctor(args: argparse.Namespace) -> None:
+    slots_path = Path(args.slots_path).expanduser() if args.slots_path else (STATE_DIR / "slots.json")
+    payload = _doctor_payload(slots_path=slots_path, slots_json=args.slots_json)
     if args.json:
         print(json.dumps(payload, indent=2, sort_keys=True))
         return
@@ -342,7 +395,17 @@ def command_run(args: argparse.Namespace) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Elgoog Gemini-first workbench")
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command", required=False)
+
+    onboard = sub.add_parser("onboard", help="Start the local app and guide first-run setup")
+    onboard.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically")
+    onboard.set_defaults(func=command_onboard)
+
+    auth = sub.add_parser("auth", help="Authentication helpers")
+    auth_sub = auth.add_subparsers(dest="auth_command", required=True)
+    auth_login = auth_sub.add_parser("login", help="Open the Gemini API key flow")
+    auth_login.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically")
+    auth_login.set_defaults(func=command_auth_login)
 
     key_url = sub.add_parser("key-url", help="Print the Gemini API key creation URL")
     key_url.set_defaults(func=command_key_url)
@@ -371,6 +434,10 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main() -> None:
     parser = build_parser()
+    if len(sys.argv) == 1:
+        args = parser.parse_args(["onboard"])
+        args.func(args)
+        return
     args = parser.parse_args()
     args.func(args)
 

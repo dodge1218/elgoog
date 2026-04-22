@@ -109,6 +109,14 @@ make doctor
 make server
 ```
 
+Primary CLI entrypoints:
+
+```bash
+elgoog
+elgoog onboard
+elgoog auth login
+```
+
 ## API key setup
 
 Create a Gemini API key here:
@@ -124,6 +132,26 @@ Slot inputs currently support:
 - `GEMINI_API_KEY`
 
 ## Running the app
+
+Fastest first-run path:
+
+```bash
+elgoog
+```
+
+That starts onboarding, checks slot readiness, and launches the local app.
+
+If you only want the key flow:
+
+```bash
+elgoog auth login
+```
+
+If you want to skip automatic browser launch:
+
+```bash
+elgoog onboard --no-browser
+```
 
 Start the local app server:
 

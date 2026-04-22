@@ -50,6 +50,19 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.task_class, "planning")
         self.assertTrue(args.dry_run)
 
+    def test_onboard_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["onboard", "--no-browser"])
+        self.assertEqual(args.command, "onboard")
+        self.assertTrue(args.no_browser)
+
+    def test_auth_login_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["auth", "login", "--no-browser"])
+        self.assertEqual(args.command, "auth")
+        self.assertEqual(args.auth_command, "login")
+        self.assertTrue(args.no_browser)
+
 
 if __name__ == "__main__":
     unittest.main()
