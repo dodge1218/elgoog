@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+
+locks/
+logs/
+outputs/
+state/
+server.log
+
+.DS_Store

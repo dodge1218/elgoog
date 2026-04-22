@@ -1,0 +1,702 @@
+:root {
+  color-scheme: dark;
+  --bg: #f3f5f8;
+  --surface: rgba(255, 255, 255, 0.92);
+  --surface-2: #ffffff;
+  --surface-3: #f8fafc;
+  --line: #d9e0e8;
+  --line-strong: #bcc7d3;
+  --text: #111827;
+  --muted: #5f6b7a;
+  --accent: #1f6feb;
+  --accent-soft: rgba(31, 111, 235, 0.1);
+  --shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+  --radius: 8px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.9), rgba(243, 245, 248, 1) 42%),
+    linear-gradient(180deg, #f5f7fb, #eef2f6);
+  color: var(--text);
+}
+
+.shell {
+  width: min(1240px, calc(100vw - 48px));
+  margin: 24px auto;
+  padding: 18px;
+}
+
+.topbar,
+.hero,
+.explain-panel,
+.status-panel,
+.slots-panel,
+.task-grid,
+.composer,
+.output-shell {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.topbar,
+.hero,
+.explain-panel,
+.status-panel,
+.task-grid,
+.composer,
+.output-shell {
+  padding: 20px;
+}
+
+.topbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.brand-block h1,
+.hero-copy h2,
+.panel-heading h3,
+.task-card h3,
+.stat-card strong,
+.explain-step h3 {
+  margin: 0;
+}
+
+.brand-block {
+  max-width: 780px;
+}
+
+.brand-block p,
+.hero-copy p,
+.task-card p,
+.doctor-card p,
+.stat-card p,
+.explain-step p,
+#outputView {
+  color: var(--muted);
+}
+
+.eyebrow,
+.hero-tag,
+.task-kicker,
+.task-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  color: #425466;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.mode-switch {
+  display: flex;
+  gap: 8px;
+}
+
+.mode-button,
+.ghost-button,
+.primary-action {
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  cursor: pointer;
+  transition: 120ms ease;
+  text-decoration: none;
+}
+
+.mode-button,
+.ghost-button {
+  min-height: 40px;
+  padding: 0 14px;
+  background: #fff;
+  color: var(--text);
+}
+
+.mode-button.active,
+.task-card.active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px rgba(31, 111, 235, 0.18);
+}
+
+.mode-button:hover,
+.ghost-button:hover,
+.task-card:hover {
+  border-color: var(--line-strong);
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.hero,
+.explain-panel,
+.status-panel,
+.history-panel,
+.slots-panel {
+  grid-column: 1 / -1;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1.15fr 0.95fr;
+  gap: 18px;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 14px;
+}
+
+.hero-actions,
+.composer-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.import-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.import-span {
+  grid-column: 1 / -1;
+}
+
+.drop-zone {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--muted);
+}
+
+.drop-zone strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.drop-zone.active {
+  border-color: var(--accent);
+  background: rgba(31, 111, 235, 0.06);
+}
+
+.drop-zone::after {
+  content: attr(data-status);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.primary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 16px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.hero-stats {
+  display: grid;
+  gap: 12px;
+}
+
+.stat-card,
+.doctor-card,
+.task-card,
+.explain-step {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.stat-card,
+.doctor-card,
+.task-card,
+.explain-step {
+  padding: 16px;
+}
+
+.stat-card strong,
+.doctor-card strong {
+  display: block;
+  margin: 8px 0 6px;
+  font-size: 20px;
+}
+
+.doctor-card-setup {
+  border-style: dashed;
+  background: var(--surface-3);
+}
+
+.panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.output-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.run-status-banner {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-3);
+}
+
+.run-status-banner strong {
+  font-size: 13px;
+}
+
+.run-status-banner span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.run-status-banner.success {
+  border-color: #b8d6c2;
+  background: #f3fbf6;
+}
+
+.run-status-banner.warn {
+  border-color: #e8d49a;
+  background: #fff9e8;
+}
+
+.run-status-banner.error {
+  border-color: #e3b4b4;
+  background: #fff3f3;
+}
+
+.run-status-banner.hidden {
+  display: none;
+}
+
+.explain-grid,
+.doctor-grid,
+.task-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.explain-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.doctor-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.slot-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.run-history {
+  display: grid;
+  gap: 10px;
+}
+
+.run-item {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+  cursor: pointer;
+}
+
+.run-item:hover {
+  border-color: var(--line-strong);
+}
+
+.run-main {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.run-meta {
+  color: var(--muted);
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: 0.8fr 1.4fr auto;
+  gap: 10px;
+}
+
+.slot-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.section-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+}
+
+.task-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
+.task-card {
+  cursor: pointer;
+}
+
+.composer,
+.output-shell {
+  align-self: start;
+}
+
+textarea,
+input {
+  width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  font: inherit;
+}
+
+textarea {
+  min-height: 260px;
+  padding: 14px;
+  resize: vertical;
+}
+
+.slot-input {
+  min-width: 180px;
+  flex: 1;
+}
+
+.slot-input label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.slot-input input {
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+#outputView {
+  margin: 0;
+  min-height: 260px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.artifact-view {
+  min-height: 220px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+  overflow: auto;
+  white-space: normal;
+}
+
+.artifact-view h2,
+.artifact-view h3,
+.artifact-view h4 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.artifact-view p,
+.artifact-view ul,
+.artifact-view pre {
+  margin: 0 0 12px;
+}
+
+.artifact-view ul {
+  padding-left: 18px;
+}
+
+.artifact-view li {
+  margin: 0 0 6px;
+}
+
+.artifact-view pre {
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.04);
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.manifest-view {
+  margin: 0 0 12px;
+  min-height: 160px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-3);
+  color: var(--muted);
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.output-summary {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.summary-row {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-3);
+}
+
+.summary-label {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.summary-value {
+  color: var(--text);
+  word-break: break-word;
+}
+
+.output-empty {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: var(--surface-3);
+}
+
+body[data-mode="terminal"] {
+  background: #0b0f12;
+  color: #d7e0e8;
+}
+
+body[data-mode="terminal"] .shell {
+  width: min(1180px, calc(100vw - 24px));
+  margin: 12px auto;
+  padding: 0;
+}
+
+body[data-mode="terminal"] .topbar,
+body[data-mode="terminal"] .hero,
+body[data-mode="terminal"] .explain-panel,
+body[data-mode="terminal"] .status-panel,
+body[data-mode="terminal"] .history-panel,
+body[data-mode="terminal"] .slots-panel,
+body[data-mode="terminal"] .task-grid,
+body[data-mode="terminal"] .composer,
+body[data-mode="terminal"] .output-shell,
+body[data-mode="terminal"] .stat-card,
+body[data-mode="terminal"] .doctor-card,
+body[data-mode="terminal"] .task-card,
+body[data-mode="terminal"] .explain-step {
+  background: #0f1419;
+  border-color: #23303d;
+  box-shadow: none;
+}
+
+body[data-mode="terminal"] .workspace {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+body[data-mode="terminal"] .topbar,
+body[data-mode="terminal"] .hero,
+body[data-mode="terminal"] .explain-panel,
+body[data-mode="terminal"] .status-panel,
+body[data-mode="terminal"] .history-panel,
+body[data-mode="terminal"] .slots-panel,
+body[data-mode="terminal"] .task-grid,
+body[data-mode="terminal"] .composer,
+body[data-mode="terminal"] .output-shell {
+  padding: 14px;
+  border-radius: 0;
+}
+
+body[data-mode="terminal"] * {
+  font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+}
+
+body[data-mode="terminal"] .brand-block p,
+body[data-mode="terminal"] .hero-copy p,
+body[data-mode="terminal"] .task-card p,
+body[data-mode="terminal"] .doctor-card p,
+body[data-mode="terminal"] .stat-card p,
+body[data-mode="terminal"] .explain-step p,
+body[data-mode="terminal"] #outputView,
+body[data-mode="terminal"] .slot-input label,
+body[data-mode="terminal"] .toggle,
+body[data-mode="terminal"] .eyebrow,
+body[data-mode="terminal"] .hero-tag,
+body[data-mode="terminal"] .task-kicker,
+body[data-mode="terminal"] .task-label {
+  color: #9eb0c0;
+}
+
+body[data-mode="terminal"] .eyebrow,
+body[data-mode="terminal"] .hero-tag,
+body[data-mode="terminal"] .task-kicker,
+body[data-mode="terminal"] .task-label {
+  background: transparent;
+  border-color: #23303d;
+}
+
+body[data-mode="terminal"] .hero {
+  grid-template-columns: 1fr;
+}
+
+body[data-mode="terminal"] .hero-copy {
+  gap: 10px;
+}
+
+body[data-mode="terminal"] .hero-stats {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+body[data-mode="terminal"] .explain-panel {
+  display: none;
+}
+
+body[data-mode="terminal"] .doctor-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+body[data-mode="terminal"] .slot-row {
+  grid-template-columns: 1fr;
+}
+
+body[data-mode="terminal"] .task-grid {
+  grid-template-columns: 1fr;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+body[data-mode="terminal"] .task-card {
+  border-radius: 0;
+  padding: 12px 14px;
+}
+
+body[data-mode="terminal"] .composer,
+body[data-mode="terminal"] .output-shell {
+  min-height: 0;
+}
+
+body[data-mode="terminal"] .drop-zone {
+  border-radius: 0;
+}
+
+body[data-mode="terminal"] .manifest-view {
+  border-radius: 0;
+}
+
+body[data-mode="terminal"] textarea,
+body[data-mode="terminal"] input,
+body[data-mode="terminal"] .artifact-view,
+body[data-mode="terminal"] #outputView,
+body[data-mode="terminal"] .run-item,
+body[data-mode="terminal"] .summary-row,
+body[data-mode="terminal"] .output-empty,
+body[data-mode="terminal"] .mode-button,
+body[data-mode="terminal"] .ghost-button {
+  background: #0b0f12;
+  border-color: #23303d;
+  color: #d7e0e8;
+}
+
+body[data-mode="terminal"] .primary-action {
+  background: #1f6feb;
+  border-color: #1f6feb;
+}
+
+@media (max-width: 980px) {
+  .shell {
+    width: min(100vw - 20px, 1240px);
+    margin: 10px auto;
+    padding: 10px;
+  }
+
+  .topbar {
+    flex-direction: column;
+  }
+
+  .workspace,
+  .hero,
+  .doctor-grid,
+  .slot-row,
+  .import-grid,
+  .task-grid,
+  .explain-grid,
+  body[data-mode="terminal"] .hero-stats {
+    grid-template-columns: 1fr;
+  }
+}

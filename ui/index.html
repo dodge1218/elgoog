@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Elgoog</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body data-mode="centered">
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand-block">
+          <div class="eyebrow">Gemini-first workbench</div>
+          <h1>Elgoog</h1>
+          <p>Centered onboarding for developers who want repo understanding, unfinished-work recovery, and next-step generation without living inside a chat corner.</p>
+        </div>
+        <div class="mode-switch" role="tablist" aria-label="Interface mode">
+          <button class="mode-button active" data-mode-target="centered">Centered</button>
+          <button class="mode-button" data-mode-target="terminal">TUI View</button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="hero">
+          <div class="hero-copy">
+            <span class="hero-tag">First-run surface</span>
+            <h2>Understand repo. Recover work. Create TODOs.</h2>
+            <p>The model quality is not the missing piece. The harness is. Start with slot health, then turn messy code, docs, and notes into a clear next move.</p>
+            <div class="hero-actions">
+              <a class="primary-action" id="keyLink" href="https://aistudio.google.com/apikey" target="_blank" rel="noreferrer">Create API key</a>
+            </div>
+          </div>
+          <div class="hero-stats">
+            <div class="stat-card">
+              <div class="task-kicker">Core</div>
+              <strong>Recover Work</strong>
+              <p>Rebuild task state from repos, docs, notes, and partial plans.</p>
+            </div>
+            <div class="stat-card">
+              <div class="task-kicker">Output</div>
+              <strong>Artifacts</strong>
+              <p>Write plans and summaries you can inspect, share, or rerun.</p>
+            </div>
+            <div class="stat-card">
+              <div class="task-kicker">Reliability</div>
+              <strong>Slot-aware</strong>
+              <p>Quota-aware failover and explicit run status instead of silent failure.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="explain-panel">
+          <div class="panel-heading">
+            <h3>How it works</h3>
+          </div>
+          <div class="explain-grid">
+            <article class="explain-step">
+              <div class="task-kicker">1</div>
+              <h3>Connect slots</h3>
+              <p>Add one or more Gemini API keys. Elgoog tracks slot readiness and uses failover when quota is exhausted.</p>
+            </article>
+            <article class="explain-step">
+              <div class="task-kicker">2</div>
+              <h3>Bring context</h3>
+              <p>Paste a repo summary, docs excerpt, TODO list, or unfinished-work note. You can also point at a file or repo, or drop a local file into the input area.</p>
+            </article>
+            <article class="explain-step">
+              <div class="task-kicker">3</div>
+              <h3>Run a work task</h3>
+              <p>Choose a concrete task like recover work, create TODOs, or understand repo. The app maps that to a Gemini-first task class.</p>
+            </article>
+            <article class="explain-step">
+              <div class="task-kicker">4</div>
+              <h3>Inspect artifacts</h3>
+              <p>Every run writes an auditable artifact with slot, model, status, and output so the system stays trustworthy.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="status-panel">
+          <div class="panel-heading">
+            <h3>Slot health</h3>
+            <button id="refreshDoctor" class="ghost-button">Refresh</button>
+          </div>
+          <div id="doctorCards" class="doctor-grid"></div>
+        </section>
+
+        <section class="history-panel">
+          <div class="panel-heading">
+            <h3>Recent runs</h3>
+            <button id="refreshRuns" class="ghost-button">Refresh</button>
+          </div>
+          <div id="runHistory" class="run-history">
+            <div class="output-empty">No runs yet.</div>
+          </div>
+        </section>
+
+        <section class="slots-panel">
+          <div class="panel-heading">
+            <h3>Slot management</h3>
+            <button id="saveSlots" class="ghost-button">Save slots</button>
+          </div>
+          <p class="section-note">Add one or more Gemini API keys here. Slots are stored locally in the Elgoog workspace.</p>
+          <div id="slotRows" class="slot-rows"></div>
+          <div class="slot-actions">
+            <button id="addSlot" class="ghost-button">Add slot</button>
+            <span id="slotSaveStatus" class="task-label">No slot file yet</span>
+          </div>
+        </section>
+
+        <section class="task-grid">
+          <article class="task-card active" data-task="recover_work">
+            <div class="task-kicker">Default</div>
+            <h3>Recover Work</h3>
+            <p>Reconstruct what was in flight, what is stale, and what the next shippable step should be.</p>
+          </article>
+          <article class="task-card" data-task="create_todos">
+            <div class="task-kicker">v1 core</div>
+            <h3>Create TODOs</h3>
+            <p>Turn repos, docs, and notes into a bounded task list instead of another blob of analysis.</p>
+          </article>
+          <article class="task-card" data-task="understand_repo">
+            <div class="task-kicker">Context</div>
+            <h3>Understand Repo</h3>
+            <p>Classify the current codebase and figure out where the real moving parts live.</p>
+          </article>
+          <article class="task-card" data-task="plan_next_steps">
+            <div class="task-kicker">Execution</div>
+            <h3>Plan Next Steps</h3>
+            <p>Convert a pile of context into the next three actions, blockers, and handoff points.</p>
+          </article>
+        </section>
+
+        <section class="composer">
+          <div class="panel-heading">
+            <h3>Run a first pass</h3>
+            <label class="toggle">
+              <input id="dryRun" type="checkbox" checked />
+              <span>Dry run</span>
+            </label>
+          </div>
+          <div class="import-grid">
+            <div class="slot-input">
+              <label for="filePathInput">File path</label>
+              <input id="filePathInput" type="text" placeholder="/abs/path/notes.md" />
+            </div>
+            <div class="slot-input">
+              <label for="repoPathInput">Repo path</label>
+              <input id="repoPathInput" type="text" placeholder="/abs/path/repo" />
+            </div>
+            <div class="slot-input import-span">
+              <label for="githubRepoInput">GitHub repo URL</label>
+              <input id="githubRepoInput" type="text" placeholder="https://github.com/owner/repo" />
+            </div>
+          </div>
+          <div id="dropZone" class="drop-zone" tabindex="0" aria-label="Drop a local file here">
+            <strong>Drop a local file here</strong>
+            <span>Its contents will be loaded into the input field for the current run.</span>
+          </div>
+          <textarea id="promptInput" placeholder="Paste a repo summary, docs excerpt, TODO list, or unfinished-work context here."></textarea>
+          <div class="composer-actions">
+            <div class="slot-input">
+              <label for="slotName">Slot</label>
+              <input id="slotName" type="text" value="gemini_slot_1" />
+            </div>
+            <button id="runButton" class="primary-action">Run task</button>
+          </div>
+        </section>
+
+        <section class="output-shell">
+          <div class="panel-heading">
+            <h3>Run output</h3>
+            <div class="output-actions">
+              <span id="selectedTaskLabel" class="task-label">recover_work</span>
+              <button id="copyArtifact" class="ghost-button" type="button">Copy artifact</button>
+              <button id="downloadArtifact" class="ghost-button" type="button">Download artifact</button>
+              <button id="copyJson" class="ghost-button" type="button">Copy JSON</button>
+            </div>
+          </div>
+          <div id="runStatusBanner" class="run-status-banner hidden"></div>
+          <div id="outputSummary" class="output-summary">
+            <div class="output-empty">No run yet.</div>
+          </div>
+          <div id="artifactView" class="artifact-view">No run yet.</div>
+          <pre id="manifestView" class="manifest-view">No provenance yet.</pre>
+          <pre id="outputView">No run yet.</pre>
+        </section>
+      </main>
+    </div>
+    <script src="/app.js"></script>
+  </body>
+</html>

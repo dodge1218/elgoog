@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "elgoog"
+version = "0.1.0"
+description = "Gemini-first developer workbench"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "google-genai>=1.16.0",
+]
+
+[project.scripts]
+elgoog = "elgoog:main"
+elgoog-server = "elgoog_server:main"
+
+[tool.setuptools]
+py-modules = ["elgoog", "elgoog_server"]
+
