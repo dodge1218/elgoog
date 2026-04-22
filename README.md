@@ -195,11 +195,21 @@ Task-native commands:
 ```bash
 elgoog recover --text "I have notes and a messy repo state. Recover the next bounded steps." --slot gemini_slot_1 --json
 
-elgoog understand --file /abs/path/notes.md --slot gemini_slot_1 --json
+elgoog understand --repo . --slot gemini_slot_1 --json
 
 elgoog todos --file /abs/path/notes.md --slot gemini_slot_1 --json
 
 elgoog plan --text "Turn this release context into a bounded plan." --slot gemini_slot_1 --json
+```
+
+Repo and GitHub inputs:
+
+```bash
+elgoog understand --repo . --slot gemini_slot_1 --json
+
+elgoog recover --repo . --slot gemini_slot_1 --json
+
+elgoog understand --github https://github.com/google-gemini/gemini-cli --slot gemini_slot_1 --json
 ```
 
 Dry run:

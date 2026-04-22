@@ -19,6 +19,9 @@ class ClassifyErrorTests(unittest.TestCase):
     def test_transient_errors_are_classified(self) -> None:
         self.assertEqual(elgoog.classify_error("504 deadline exceeded"), "transient")
 
+    def test_503_unavailable_is_classified_as_transient(self) -> None:
+        self.assertEqual(elgoog.classify_error("503 UNAVAILABLE"), "transient")
+
     def test_auth_errors_are_classified(self) -> None:
         self.assertEqual(elgoog.classify_error("permission denied"), "auth")
 
@@ -95,6 +98,19 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.command, "todos")
         self.assertEqual(args.file, "./notes.md")
         self.assertTrue(args.json)
+
+    def test_understand_parser_accepts_repo(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["understand", "--repo", ".", "--slot", "work"])
+        self.assertEqual(args.command, "understand")
+        self.assertEqual(args.repo, ".")
+        self.assertEqual(args.slot, "work")
+
+    def test_run_parser_accepts_github(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["run", "--github", "https://github.com/google-gemini/gemini-cli", "--task-class", "classification", "--dry-run"])
+        self.assertEqual(args.command, "run")
+        self.assertEqual(args.github, "https://github.com/google-gemini/gemini-cli")
 
 
 if __name__ == "__main__":
