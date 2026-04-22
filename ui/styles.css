@@ -369,6 +369,16 @@ body {
   gap: 10px;
 }
 
+.slot-row-labels {
+  margin-bottom: 6px;
+}
+
+.slot-label {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
 .slot-actions {
   display: flex;
   justify-content: space-between;

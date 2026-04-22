@@ -57,7 +57,7 @@
             <article class="explain-step">
               <div class="task-kicker">1</div>
               <h3>Connect slots</h3>
-              <p>Add one or more Gemini API keys. Elgoog tracks slot readiness and uses failover when quota is exhausted.</p>
+              <p>Click Create API key, copy the key from Google, then paste it into Slot management below and click Save slots. Elgoog tracks slot readiness and uses failover when quota is exhausted.</p>
             </article>
             <article class="explain-step">
               <div class="task-kicker">2</div>
@@ -100,7 +100,12 @@
             <h3>Slot management</h3>
             <button id="saveSlots" class="ghost-button">Save slots</button>
           </div>
-          <p class="section-note">Add one or more Gemini API keys here. Slots are stored locally in the Elgoog workspace.</p>
+          <p class="section-note">Paste your Gemini API key into the <strong>Gemini API key</strong> field below, then click <strong>Save slots</strong>. Slots are stored locally in the Elgoog workspace.</p>
+          <div class="slot-row slot-row-labels" aria-hidden="true">
+            <div class="slot-label">Slot name</div>
+            <div class="slot-label">Gemini API key</div>
+            <div class="slot-label">Action</div>
+          </div>
           <div id="slotRows" class="slot-rows"></div>
           <div class="slot-actions">
             <button id="addSlot" class="ghost-button">Add slot</button>

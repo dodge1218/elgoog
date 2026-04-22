@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import fcntl
+import getpass
 import json
 import os
 import sys
@@ -84,6 +85,25 @@ def now_iso() -> str:
 def print_banner() -> None:
     print(BANNER)
     print("Gemini-native developer workbench")
+
+
+def _read_existing_slots(path: Path) -> list[dict]:
+    if not path.exists():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    clean: list[dict] = []
+    for item in data:
+        if isinstance(item, dict) and item.get("api_key"):
+            clean.append({
+                "slot": str(item.get("slot") or f"slot_{len(clean)+1}"),
+                "api_key": str(item["api_key"]).strip(),
+            })
+    return clean
 
 
 def read_text_arg(args: argparse.Namespace) -> str:
@@ -264,11 +284,54 @@ def command_auth_login(args: argparse.Namespace) -> None:
     print("Open the Gemini API key page:")
     print(KEY_URL)
     print()
-    print("After creating a key, either:")
-    print(f"- save it in {STATE_DIR / 'slots.json'}")
-    print("- or add it in the Elgoog app slot manager")
+    print("Next step after you copy the key:")
+    print("- run: elgoog auth add")
+    print("- or open the app and paste it into Slot management > Gemini API key > Save slots")
     if not args.no_browser:
         webbrowser.open(KEY_URL)
+
+
+def command_auth_add(args: argparse.Namespace) -> None:
+    ensure_dirs()
+    slots_path = STATE_DIR / "slots.json"
+    existing = _read_existing_slots(slots_path)
+    slot_name = (args.slot or input("Slot name [gemini_slot_1]: ").strip() or "gemini_slot_1").strip()
+    api_key = (args.api_key or getpass.getpass("Gemini API key: ").strip())
+    if not api_key:
+        raise SystemExit("No API key provided.")
+    updated: list[dict] = []
+    replaced = False
+    for item in existing:
+        if item["slot"] == slot_name:
+            updated.append({"slot": slot_name, "api_key": api_key})
+            replaced = True
+        else:
+            updated.append(item)
+    if not replaced:
+        updated.append({"slot": slot_name, "api_key": api_key})
+    slots_path.parent.mkdir(parents=True, exist_ok=True)
+    slots_path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
+    print_banner()
+    print()
+    print(f"Saved slot: {slot_name}")
+    print(f"Slots file: {slots_path}")
+    print()
+    print("Next:")
+    print("- run: elgoog onboard")
+    print("- or run: elgoog doctor --json")
+
+
+def command_welcome(_: argparse.Namespace) -> None:
+    print_banner()
+    print()
+    print("Get started:")
+    print("1. elgoog auth login   # open Gemini key page")
+    print("2. elgoog auth add     # save a key locally")
+    print("3. elgoog onboard      # start the local app")
+    print()
+    print("Other useful commands:")
+    print("- elgoog doctor --json")
+    print("- elgoog run --help")
 
 
 def command_onboard(args: argparse.Namespace) -> None:
@@ -282,6 +345,7 @@ def command_onboard(args: argparse.Namespace) -> None:
         print()
         print("No Gemini slots configured yet.")
         print(f"Create a key: {KEY_URL}")
+        print("Then run: elgoog auth add")
     print()
     print("Starting local app at http://127.0.0.1:8765")
     if not args.no_browser:
@@ -406,6 +470,10 @@ def build_parser() -> argparse.ArgumentParser:
     auth_login = auth_sub.add_parser("login", help="Open the Gemini API key flow")
     auth_login.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically")
     auth_login.set_defaults(func=command_auth_login)
+    auth_add = auth_sub.add_parser("add", help="Save a Gemini API key into local slots")
+    auth_add.add_argument("--slot", help="Slot name to save")
+    auth_add.add_argument("--api-key", help="Explicit Gemini API key")
+    auth_add.set_defaults(func=command_auth_add)
 
     key_url = sub.add_parser("key-url", help="Print the Gemini API key creation URL")
     key_url.set_defaults(func=command_key_url)
@@ -435,8 +503,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     if len(sys.argv) == 1:
-        args = parser.parse_args(["onboard"])
-        args.func(args)
+        command_welcome(argparse.Namespace())
         return
     args = parser.parse_args()
     args.func(args)
