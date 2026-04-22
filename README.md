@@ -101,6 +101,14 @@ elgoog
 elgoog-server
 ```
 
+Or use the local convenience targets:
+
+```bash
+make test
+make doctor
+make server
+```
+
 ## API key setup
 
 Create a Gemini API key here:
@@ -140,6 +148,19 @@ The app provides:
 - run history
 - provenance display
 
+## First-run path
+
+If you want the shortest path to a working local setup:
+
+1. create a Gemini API key:
+   - https://aistudio.google.com/apikey
+2. start the app:
+   - `make server`
+3. open:
+   - `http://127.0.0.1:8765`
+4. save one or more slots in the app
+5. run `Recover Work` or `Understand Repo` against a local repo or public GitHub repo
+
 ## CLI examples
 
 Dry run:
@@ -168,6 +189,12 @@ Open the key page:
 
 ```bash
 elgoog key-url
+```
+
+Check local readiness:
+
+```bash
+elgoog doctor --json
 ```
 
 ## Runtime model
