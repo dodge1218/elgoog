@@ -81,7 +81,7 @@ Elgoog is currently a Python project. It is not an npm package.
 ### Local editable install
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/dodge1218/elgoog.git
 cd elgoog
 python3 -m venv .venv
 source .venv/bin/activate
@@ -91,7 +91,7 @@ pip install -e .
 ### `pipx` install from GitHub
 
 ```bash
-pipx install git+https://github.com/<owner>/elgoog.git
+pipx install git+https://github.com/dodge1218/elgoog.git
 ```
 
 Installed commands:
@@ -134,7 +134,7 @@ Slot inputs currently support:
 - `ELGOOG_API_KEYS`
 - `GEMINI_API_KEY`
 
-## Running the app
+## CLI first run
 
 Fastest first-run path:
 
@@ -163,41 +163,6 @@ Important:
 - the first prompt is only a local slot label, for example `gemini_slot_1`
 - the second prompt is the actual Gemini API key
 
-If you want to start the optional local app:
-
-```bash
-elgoog web
-```
-
-If you want browser launch automatically:
-
-```bash
-elgoog web --open-browser
-```
-
-Start the local app server:
-
-```bash
-elgoog-server
-```
-
-Then open:
-
-```text
-http://127.0.0.1:8765
-```
-
-The app provides:
-
-- setup/doctor surface
-- slot management
-- local file input
-- local repo input
-- public GitHub repo URL input
-- artifact rendering
-- run history
-- provenance display
-
 ## First-run path
 
 If you want the shortest path to a working local setup:
@@ -208,9 +173,10 @@ If you want the shortest path to a working local setup:
    - `elgoog auth add`
 3. verify readiness:
    - `elgoog doctor --json`
-4. optionally start the app:
+4. run a real task:
+   - `elgoog run --text "Understand this repo and give me the next 3 bounded tasks." --task-class planning --slot gemini_slot_1 --json`
+5. optionally use the web surface later for setup and inspection:
    - `elgoog web`
-5. run `Recover Work` or `Understand Repo` against a local repo or public GitHub repo
 
 ## CLI examples
 
@@ -240,6 +206,32 @@ elgoog run \
   --slot gemini_slot_1 \
   --slots-path /abs/path/slots.json \
   --json
+```
+
+## Optional web surface
+
+If you want the optional local UI for setup, artifact inspection, and repo/file input:
+
+```bash
+elgoog web
+```
+
+If you want browser launch automatically:
+
+```bash
+elgoog web --open-browser
+```
+
+The lower-level server entrypoint also exists:
+
+```bash
+elgoog-server
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765
 ```
 
 Open the key page:
@@ -313,8 +305,6 @@ Working now:
 
 Still missing before a serious public release:
 
-- dedicated clean GitHub repo/remotes
-- CI running on a real remote
 - polished install story
 - real desktop shell
 - stronger progress and latency handling
