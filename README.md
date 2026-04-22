@@ -226,10 +226,12 @@ Working now:
 - run history
 - copy/export
 - file-backed manifests
+- basic local test coverage
 
 Still missing before a serious public release:
 
 - dedicated clean GitHub repo/remotes
+- CI running on a real remote
 - polished install story
 - real desktop shell
 - stronger progress and latency handling
