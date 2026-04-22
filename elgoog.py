@@ -585,6 +585,29 @@ def command_run(args: argparse.Namespace) -> None:
         raise SystemExit(73)
 
 
+def command_task_alias(args: argparse.Namespace) -> None:
+    task_map = {
+        "recover": "planning",
+        "understand": "planning",
+        "todos": "cheap_extract",
+        "plan": "planning",
+    }
+    task_class = task_map[args.command]
+    run_args = argparse.Namespace(
+        text=args.text,
+        file=args.file,
+        task_class=task_class,
+        slot=args.slot,
+        slots_path=args.slots_path,
+        slots_json=args.slots_json,
+        api_key=args.api_key,
+        model=args.model,
+        dry_run=args.dry_run,
+        json=args.json,
+    )
+    command_run(run_args)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Elgoog Gemini-first workbench")
     sub = parser.add_subparsers(dest="command", required=False)
@@ -633,6 +656,24 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true")
     run.add_argument("--json", action="store_true")
     run.set_defaults(func=command_run)
+
+    def add_task_parser(name: str, help_text: str) -> None:
+        task = sub.add_parser(name, help=help_text)
+        task.add_argument("--text", help="Input text")
+        task.add_argument("--file", help="Input file")
+        task.add_argument("--slot", default="gemini_slot_1", help="Identifier for the Gemini slot/project used")
+        task.add_argument("--slots-path", help="Path to slots JSON")
+        task.add_argument("--slots-json", default="", help="Inline JSON array of slots")
+        task.add_argument("--api-key", help="Explicit Gemini API key")
+        task.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model")
+        task.add_argument("--dry-run", action="store_true")
+        task.add_argument("--json", action="store_true")
+        task.set_defaults(func=command_task_alias)
+
+    add_task_parser("recover", "Recover in-flight work and next bounded steps")
+    add_task_parser("understand", "Understand a repo, file, or notes source")
+    add_task_parser("todos", "Extract bounded TODOs from source material")
+    add_task_parser("plan", "Turn source material into a bounded plan")
 
     return parser
 

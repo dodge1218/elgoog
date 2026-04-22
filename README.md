@@ -117,6 +117,10 @@ elgoog help
 elgoog onboard
 elgoog auth login
 elgoog auth add
+elgoog recover
+elgoog understand
+elgoog todos
+elgoog plan
 elgoog run --help
 ```
 
@@ -174,7 +178,7 @@ If you want the shortest path to a working local setup:
 3. verify readiness:
    - `elgoog doctor --json`
 4. run a real task:
-   - `elgoog run --text "Understand this repo and give me the next 3 bounded tasks." --task-class planning --slot gemini_slot_1 --json`
+   - `elgoog understand --text "Understand this repo and give me the next 3 bounded tasks." --slot gemini_slot_1 --json`
 5. optionally use the web surface later for setup and inspection:
    - `elgoog web`
 
@@ -184,6 +188,18 @@ Show the short command map again:
 
 ```bash
 elgoog help
+```
+
+Task-native commands:
+
+```bash
+elgoog recover --text "I have notes and a messy repo state. Recover the next bounded steps." --slot gemini_slot_1 --json
+
+elgoog understand --file /abs/path/notes.md --slot gemini_slot_1 --json
+
+elgoog todos --file /abs/path/notes.md --slot gemini_slot_1 --json
+
+elgoog plan --text "Turn this release context into a bounded plan." --slot gemini_slot_1 --json
 ```
 
 Dry run:

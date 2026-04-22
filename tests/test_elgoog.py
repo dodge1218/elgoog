@@ -82,6 +82,20 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.command, "web")
         self.assertTrue(args.open_browser)
 
+    def test_recover_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["recover", "--text", "notes", "--slot", "work", "--dry-run"])
+        self.assertEqual(args.command, "recover")
+        self.assertEqual(args.slot, "work")
+        self.assertTrue(args.dry_run)
+
+    def test_todos_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["todos", "--file", "./notes.md", "--json"])
+        self.assertEqual(args.command, "todos")
+        self.assertEqual(args.file, "./notes.md")
+        self.assertTrue(args.json)
+
 
 if __name__ == "__main__":
     unittest.main()
