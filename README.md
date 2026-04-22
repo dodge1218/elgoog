@@ -278,6 +278,14 @@ Check local readiness:
 elgoog doctor --json
 ```
 
+## Proof examples
+
+Real example outputs live in:
+
+- [examples/README.md](examples/README.md)
+- [examples/example-understand-local-repo-small.md](examples/example-understand-local-repo-small.md)
+- [examples/example-recover-local-repo-medium.md](examples/example-recover-local-repo-medium.md)
+
 ## Runtime model
 
 Today, Elgoog works like this:
