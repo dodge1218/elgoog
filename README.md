@@ -20,8 +20,8 @@ The product is not trying to be a general AI cockpit.
 
 ## What it is
 
-- a local Gemini runtime wrapper
-- a local web app on top of that runtime
+- a CLI-first Gemini runtime wrapper
+- an optional local web app for setup and inspection
 - file-backed and provenance-first
 - optimized for understanding and advancing work
 
@@ -113,8 +113,11 @@ Primary CLI entrypoints:
 
 ```bash
 elgoog
+elgoog help
 elgoog onboard
 elgoog auth login
+elgoog auth add
+elgoog run --help
 ```
 
 ## API key setup
@@ -139,7 +142,7 @@ Fastest first-run path:
 elgoog
 ```
 
-That starts onboarding, checks slot readiness, and launches the local app.
+That prints the short first-use command map. It does not launch the browser.
 
 If you only want the key flow:
 
@@ -147,10 +150,29 @@ If you only want the key flow:
 elgoog auth login
 ```
 
-If you want to skip automatic browser launch:
+That prints the Gemini key URL and the next local steps. Browser launch is manual by default.
+
+To save a key locally:
 
 ```bash
-elgoog onboard --no-browser
+elgoog auth add
+```
+
+Important:
+
+- the first prompt is only a local slot label, for example `gemini_slot_1`
+- the second prompt is the actual Gemini API key
+
+If you want to start the optional local app:
+
+```bash
+elgoog web
+```
+
+If you want browser launch automatically:
+
+```bash
+elgoog web --open-browser
 ```
 
 Start the local app server:
@@ -182,14 +204,21 @@ If you want the shortest path to a working local setup:
 
 1. create a Gemini API key:
    - https://aistudio.google.com/apikey
-2. start the app:
-   - `make server`
-3. open:
-   - `http://127.0.0.1:8765`
-4. save one or more slots in the app
+2. save one local slot:
+   - `elgoog auth add`
+3. verify readiness:
+   - `elgoog doctor --json`
+4. optionally start the app:
+   - `elgoog web`
 5. run `Recover Work` or `Understand Repo` against a local repo or public GitHub repo
 
 ## CLI examples
+
+Show the short command map again:
+
+```bash
+elgoog help
+```
 
 Dry run:
 

@@ -8,7 +8,7 @@ import getpass
 import json
 import os
 import sys
-import threading
+import time
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
@@ -76,15 +76,71 @@ BANNER = r"""
 ███████╗███████╗╚██████╔╝╚██████╔╝╚██████╔╝╚██████╔╝
 ╚══════╝╚══════╝ ╚═════╝  ╚═════╝  ╚═════╝  ╚═════╝
 """.strip("\n")
+LOGO_WORD = "ELGOOG"
+ANSI_RESET = "\033[0m"
+ANSI_BOLD = "\033[1m"
+ANSI_DIM = "\033[2m"
+ANSI_CYAN = "\033[36m"
+ANSI_WHITE = "\033[37m"
+ANSI_GREY = "\033[90m"
 
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
 
 
+def _supports_ansi() -> bool:
+    return sys.stdout.isatty() and os.environ.get("TERM") not in ("", "dumb", None)
+
+
+def _style(text: str, *codes: str) -> str:
+    if not _supports_ansi():
+        return text
+    return "".join(codes) + text + ANSI_RESET
+
+
+def _render_logo_frame(active: set[int], *, bounce: int | None = None, wiggle: int | None = None) -> str:
+    letters: list[str] = []
+    for idx, char in enumerate(LOGO_WORD):
+        glyph = char
+        if bounce == idx:
+            glyph = glyph.lower() if idx == 3 else glyph
+        if wiggle == idx:
+            glyph = f"[{glyph}]"
+        if idx in active:
+            letters.append(_style(glyph, ANSI_BOLD, ANSI_CYAN))
+        else:
+            letters.append(_style(glyph, ANSI_GREY))
+    return " ".join(letters)
+
+
+def animate_logo() -> None:
+    if os.environ.get("ELGOOG_NO_ANIM") == "1" or not _supports_ansi():
+        return
+    frames: list[tuple[set[int], int | None, int | None, float]] = []
+    for idx in range(len(LOGO_WORD)):
+        frames.append(({idx}, 0 if idx == 0 else None, None, 0.08 if idx == 0 else 0.06))
+    frames.extend(
+        [
+            (set(), None, None, 0.08),
+            ({0}, 0, None, 0.08),
+            ({len(LOGO_WORD) - 1}, len(LOGO_WORD) - 1, None, 0.08),
+            ({3}, None, 3, 0.09),
+        ]
+    )
+    print()
+    for active, bounce, wiggle, delay in frames:
+        sys.stdout.write("\r" + _render_logo_frame(active, bounce=bounce, wiggle=wiggle) + "   ")
+        sys.stdout.flush()
+        time.sleep(delay)
+    sys.stdout.write("\r" + _style(LOGO_WORD, ANSI_BOLD, ANSI_WHITE) + "             \n")
+    sys.stdout.flush()
+
+
 def print_banner() -> None:
+    animate_logo()
     print(BANNER)
-    print("Gemini-native developer workbench")
+    print(_style("Gemini-native developer workbench", ANSI_BOLD))
 
 
 def _read_existing_slots(path: Path) -> list[dict]:
@@ -281,13 +337,15 @@ def _doctor_payload(slots_path: Path | None = None, slots_json: str = "") -> dic
 def command_auth_login(args: argparse.Namespace) -> None:
     print_banner()
     print()
-    print("Open the Gemini API key page:")
+    print(_style("Create a Gemini API key", ANSI_BOLD))
     print(KEY_URL)
     print()
-    print("Next step after you copy the key:")
+    print(_style("What happens next", ANSI_BOLD))
     print("- run: elgoog auth add")
-    print("- or open the app and paste it into Slot management > Gemini API key > Save slots")
-    if not args.no_browser:
+    print("- first prompt = local slot label, for example: gemini_slot_1")
+    print("- second prompt = the actual Gemini API key")
+    print("- or paste the key into the app under Slot management > Gemini API key > Save slots")
+    if args.open_browser:
         webbrowser.open(KEY_URL)
 
 
@@ -295,8 +353,10 @@ def command_auth_add(args: argparse.Namespace) -> None:
     ensure_dirs()
     slots_path = STATE_DIR / "slots.json"
     existing = _read_existing_slots(slots_path)
+    if not args.slot:
+        print(_style("Local slot label", ANSI_BOLD) + " (this is only a name for Elgoog, not the API key)")
     slot_name = (args.slot or input("Slot name [gemini_slot_1]: ").strip() or "gemini_slot_1").strip()
-    api_key = (args.api_key or getpass.getpass("Gemini API key: ").strip())
+    api_key = (args.api_key or getpass.getpass("Gemini API key (paste the actual key): ").strip())
     if not api_key:
         raise SystemExit("No API key provided.")
     updated: list[dict] = []
@@ -313,10 +373,10 @@ def command_auth_add(args: argparse.Namespace) -> None:
     slots_path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
     print_banner()
     print()
-    print(f"Saved slot: {slot_name}")
-    print(f"Slots file: {slots_path}")
+    print(_style("Saved slot", ANSI_BOLD) + f": {slot_name}")
+    print(_style("Slots file", ANSI_BOLD) + f": {slots_path}")
     print()
-    print("Next:")
+    print(_style("Next", ANSI_BOLD) + ":")
     print("- run: elgoog onboard")
     print("- or run: elgoog doctor --json")
 
@@ -324,35 +384,103 @@ def command_auth_add(args: argparse.Namespace) -> None:
 def command_welcome(_: argparse.Namespace) -> None:
     print_banner()
     print()
-    print("Get started:")
-    print("1. elgoog auth login   # open Gemini key page")
-    print("2. elgoog auth add     # save a key locally")
-    print("3. elgoog onboard      # start the local app")
+    payload = _doctor_payload()
+    print(_style("Status", ANSI_BOLD) + f": {payload['slots_available']} slot(s) ready")
+    print(_style("Default model", ANSI_BOLD) + f": {payload['default_model']}")
     print()
-    print("Other useful commands:")
+    print(_style("Primary path", ANSI_BOLD) + ":")
+    if payload["slots_available"] == 0:
+        print(_style("1. ", ANSI_CYAN), "elgoog auth login   ", _style("# get a Gemini API key", ANSI_DIM), sep="")
+        print(_style("2. ", ANSI_CYAN), "elgoog auth add     ", _style("# save one local slot", ANSI_DIM), sep="")
+        print(_style("3. ", ANSI_CYAN), "elgoog doctor --json", _style("# verify readiness", ANSI_DIM), sep="")
+    else:
+        preferred_slot = payload["slots"][0]["slot"]
+        print(_style("1. ", ANSI_CYAN), f"elgoog run --text \"Understand this repo and give me the next 3 bounded tasks.\" --task-class planning --slot {preferred_slot} --json", sep="")
+        print(_style("2. ", ANSI_CYAN), "elgoog help         ", _style("# task-oriented examples", ANSI_DIM), sep="")
+        print(_style("3. ", ANSI_CYAN), "elgoog web          ", _style("# optional local inspector", ANSI_DIM), sep="")
+    print()
+    print(_style("Useful commands", ANSI_BOLD) + ":")
     print("- elgoog doctor --json")
+    print("- elgoog help")
     print("- elgoog run --help")
+    print("- elgoog web         # optional local web surface")
+    print()
+    print(_style("What Elgoog is for", ANSI_BOLD) + ": recover work, understand repos, create bounded TODOs, and produce readable artifacts.")
 
 
 def command_onboard(args: argparse.Namespace) -> None:
     print_banner()
     print()
     payload = _doctor_payload()
-    print(f"Default model: {payload['default_model']}")
-    print(f"Slots available: {payload['slots_available']}")
-    print(f"Slots path: {payload['slots_path']}")
+    print(_style("Onboarding", ANSI_BOLD))
+    print("Elgoog is a CLI-first Gemini workbench for repo understanding, work recovery, and bounded planning.")
+    print("It is file-backed, provenance-first, and explicit about auth and failure states.")
+    print()
+    print(_style("Default model", ANSI_BOLD) + f": {payload['default_model']}")
+    print(_style("Slots available", ANSI_BOLD) + f": {payload['slots_available']}")
+    print(_style("Slots path", ANSI_BOLD) + f": {payload['slots_path']}")
     if payload["slots_available"] == 0:
         print()
-        print("No Gemini slots configured yet.")
-        print(f"Create a key: {KEY_URL}")
-        print("Then run: elgoog auth add")
+        print(_style("No Gemini slots configured yet.", ANSI_BOLD))
+        print(_style("Create key", ANSI_BOLD) + f": {KEY_URL}")
+        print(_style("Then run", ANSI_BOLD) + ": elgoog auth add")
+        print()
+        print(_style("Recommended next step", ANSI_BOLD) + ":")
+        print("elgoog auth add")
+        print()
+        print(_style("Optional later", ANSI_BOLD) + ":")
+        print("elgoog web")
+        return
+
     print()
-    print("Starting local app at http://127.0.0.1:8765")
-    if not args.no_browser:
-        threading.Timer(1.0, lambda: webbrowser.open("http://127.0.0.1:8765")).start()
+    print(_style("Recommended next step", ANSI_BOLD) + ":")
+    preferred_slot = payload["slots"][0]["slot"]
+    print(f"elgoog run --text \"Understand this repo and give me the next 3 bounded tasks.\" --task-class planning --slot {preferred_slot} --json")
+    print()
+    print(_style("Optional commands", ANSI_BOLD) + ":")
+    print("- elgoog doctor --json")
+    print("- elgoog web")
+    print(_style("Tip", ANSI_BOLD) + ": run `elgoog help` if you want the short command map again.")
+
+
+def command_web(args: argparse.Namespace) -> None:
+    print_banner()
+    print()
+    print(_style("Starting local web surface", ANSI_BOLD) + ": http://127.0.0.1:8765")
+    print(_style("Use this for", ANSI_BOLD) + ": slot setup, artifact inspection, and optional repo/file input.")
+    if args.open_browser:
+        webbrowser.open("http://127.0.0.1:8765")
     import elgoog_server
 
     elgoog_server.main()
+
+
+def command_help(_: argparse.Namespace) -> None:
+    print_banner()
+    print()
+    print(_style("Common tasks", ANSI_BOLD) + ":")
+    print("1. Get a Gemini API key")
+    print("   elgoog auth login")
+    print()
+    print("2. Save one local slot")
+    print("   elgoog auth add")
+    print()
+    print("3. Verify readiness")
+    print("   elgoog doctor --json")
+    print()
+    print("4. Run a planning task")
+    print("   elgoog run --text \"Understand this repo and give me the next 3 bounded tasks.\" --task-class planning --slot gemini_slot_1 --json")
+    print()
+    print("5. Extract TODOs from notes")
+    print("   elgoog run --file ./notes.md --task-class cheap_extract --slot gemini_slot_1 --json")
+    print()
+    print("6. Inspect outputs in the optional web surface")
+    print("   elgoog web")
+    print()
+    print(_style("Notes", ANSI_BOLD) + ":")
+    print("- Elgoog is CLI-first.")
+    print("- The web surface is optional.")
+    print("- Slot names are local labels. They are not Gemini API keys.")
 
 
 def command_doctor(args: argparse.Namespace) -> None:
@@ -461,14 +589,16 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Elgoog Gemini-first workbench")
     sub = parser.add_subparsers(dest="command", required=False)
 
-    onboard = sub.add_parser("onboard", help="Start the local app and guide first-run setup")
-    onboard.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically")
+    onboard = sub.add_parser("onboard", help="Guide first-run CLI setup")
+    onboard.add_argument("--open-browser", action="store_true", help=argparse.SUPPRESS)
+    onboard.add_argument("--no-browser", action="store_true", help=argparse.SUPPRESS)
     onboard.set_defaults(func=command_onboard)
 
     auth = sub.add_parser("auth", help="Authentication helpers")
     auth_sub = auth.add_subparsers(dest="auth_command", required=True)
     auth_login = auth_sub.add_parser("login", help="Open the Gemini API key flow")
-    auth_login.add_argument("--no-browser", action="store_true", help="Do not open the browser automatically")
+    auth_login.add_argument("--open-browser", action="store_true", help="Open the browser automatically")
+    auth_login.add_argument("--no-browser", action="store_true", help=argparse.SUPPRESS)
     auth_login.set_defaults(func=command_auth_login)
     auth_add = auth_sub.add_parser("add", help="Save a Gemini API key into local slots")
     auth_add.add_argument("--slot", help="Slot name to save")
@@ -477,6 +607,13 @@ def build_parser() -> argparse.ArgumentParser:
 
     key_url = sub.add_parser("key-url", help="Print the Gemini API key creation URL")
     key_url.set_defaults(func=command_key_url)
+
+    help_parser = sub.add_parser("help", help="Show the short first-use command map")
+    help_parser.set_defaults(func=command_help)
+
+    web = sub.add_parser("web", help="Start the optional local web surface")
+    web.add_argument("--open-browser", action="store_true", help="Open the browser automatically")
+    web.set_defaults(func=command_web)
 
     doctor = sub.add_parser("doctor", help="Show auth and slot readiness")
     doctor.add_argument("--slots-path", help="Path to slots JSON")
@@ -505,6 +642,8 @@ def main() -> None:
     if len(sys.argv) == 1:
         command_welcome(argparse.Namespace())
         return
+    if sys.argv[1] == "/help":
+        sys.argv[1] = "help"
     args = parser.parse_args()
     args.func(args)
 

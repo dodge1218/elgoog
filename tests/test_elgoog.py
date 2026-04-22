@@ -63,6 +63,25 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.auth_command, "login")
         self.assertTrue(args.no_browser)
 
+    def test_auth_add_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["auth", "add", "--slot", "gemini_slot_1", "--api-key", "abc123"])
+        self.assertEqual(args.command, "auth")
+        self.assertEqual(args.auth_command, "add")
+        self.assertEqual(args.slot, "gemini_slot_1")
+        self.assertEqual(args.api_key, "abc123")
+
+    def test_help_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["help"])
+        self.assertEqual(args.command, "help")
+
+    def test_web_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["web", "--open-browser"])
+        self.assertEqual(args.command, "web")
+        self.assertTrue(args.open_browser)
+
 
 if __name__ == "__main__":
     unittest.main()

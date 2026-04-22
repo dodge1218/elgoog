@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.log
+*.egg-info/
 
 locks/
 logs/

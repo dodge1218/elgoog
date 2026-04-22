@@ -1,16 +1,16 @@
 :root {
   color-scheme: dark;
-  --bg: #f3f5f8;
-  --surface: rgba(255, 255, 255, 0.92);
+  --bg: #eef2f6;
+  --surface: rgba(255, 255, 255, 0.94);
   --surface-2: #ffffff;
-  --surface-3: #f8fafc;
-  --line: #d9e0e8;
-  --line-strong: #bcc7d3;
-  --text: #111827;
-  --muted: #5f6b7a;
-  --accent: #1f6feb;
-  --accent-soft: rgba(31, 111, 235, 0.1);
-  --shadow: 0 24px 70px rgba(15, 23, 42, 0.08);
+  --surface-3: #f4f7fa;
+  --line: #d7dee7;
+  --line-strong: #b8c4d2;
+  --text: #0f172a;
+  --muted: #526071;
+  --accent: #0f62fe;
+  --accent-soft: rgba(15, 98, 254, 0.08);
+  --shadow: 0 16px 40px rgba(15, 23, 42, 0.06);
   --radius: 8px;
 }
 
@@ -22,24 +22,20 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: Inter, "Segoe UI", Arial, sans-serif;
-  background:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.9), rgba(243, 245, 248, 1) 42%),
-    linear-gradient(180deg, #f5f7fb, #eef2f6);
+  background: linear-gradient(180deg, #f3f6f9, #edf1f5);
   color: var(--text);
 }
 
 .shell {
   width: min(1240px, calc(100vw - 48px));
-  margin: 24px auto;
-  padding: 18px;
+  margin: 20px auto 32px;
+  padding: 12px;
 }
 
 .topbar,
-.hero,
-.explain-panel,
+.setup-panel,
 .status-panel,
 .slots-panel,
-.task-grid,
 .composer,
 .output-shell {
   border: 1px solid var(--line);
@@ -49,13 +45,11 @@ body {
 }
 
 .topbar,
-.hero,
-.explain-panel,
+.setup-panel,
 .status-panel,
-.task-grid,
 .composer,
 .output-shell {
-  padding: 20px;
+  padding: 18px;
 }
 
 .topbar {
@@ -66,30 +60,32 @@ body {
 }
 
 .brand-block h1,
-.hero-copy h2,
 .panel-heading h3,
 .task-card h3,
-.stat-card strong,
 .explain-step h3 {
   margin: 0;
 }
 
 .brand-block {
-  max-width: 780px;
+  max-width: 720px;
+}
+
+.brand-block h1 {
+  font-size: 32px;
+  line-height: 1.05;
+  letter-spacing: 0;
+  margin-top: 8px;
 }
 
 .brand-block p,
-.hero-copy p,
 .task-card p,
 .doctor-card p,
-.stat-card p,
 .explain-step p,
 #outputView {
   color: var(--muted);
 }
 
 .eyebrow,
-.hero-tag,
 .task-kicker,
 .task-label {
   display: inline-flex;
@@ -147,28 +143,33 @@ body {
   margin-top: 18px;
 }
 
-.hero,
-.explain-panel,
-.status-panel,
-.history-panel,
-.slots-panel {
+.setup-panel,
+.secondary-panel {
   grid-column: 1 / -1;
 }
 
-.hero {
+.setup-panel {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 18px;
+}
+
+.setup-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.95fr;
-  gap: 18px;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 16px;
+  align-items: start;
 }
 
-.hero-copy {
+.setup-actions {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 14px;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
-.hero-actions,
 .composer-actions {
   display: flex;
   gap: 12px;
@@ -225,28 +226,22 @@ body {
   font-weight: 600;
 }
 
-.hero-stats {
-  display: grid;
-  gap: 12px;
-}
-
-.stat-card,
 .doctor-card,
 .task-card,
-.explain-step {
+.explain-step,
+.history-panel {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-2);
 }
 
-.stat-card,
 .doctor-card,
 .task-card,
-.explain-step {
+.explain-step,
+.history-panel {
   padding: 16px;
 }
 
-.stat-card strong,
 .doctor-card strong {
   display: block;
   margin: 8px 0 6px;
@@ -313,17 +308,18 @@ body {
 
 .explain-grid,
 .doctor-grid,
-.task-grid {
+.task-grid,
+.secondary-panel {
   display: grid;
   gap: 12px;
 }
 
 .explain-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .doctor-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .slot-rows {
@@ -395,10 +391,21 @@ body {
 .task-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-content: start;
+  margin-bottom: 14px;
 }
 
 .task-card {
   cursor: pointer;
+}
+
+.task-grid.compact .task-card {
+  padding: 14px;
+}
+
+.task-card p,
+.doctor-card p,
+.explain-step p {
+  margin: 8px 0 0;
 }
 
 .composer,
@@ -417,7 +424,7 @@ input {
 }
 
 textarea {
-  min-height: 260px;
+  min-height: 220px;
   padding: 14px;
   resize: vertical;
 }
@@ -448,7 +455,7 @@ textarea {
 
 #outputView {
   margin: 0;
-  min-height: 260px;
+  min-height: 220px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -458,7 +465,7 @@ textarea {
 }
 
 .artifact-view {
-  min-height: 220px;
+  min-height: 180px;
   margin-bottom: 12px;
   padding: 14px;
   border: 1px solid var(--line);
@@ -501,7 +508,7 @@ textarea {
 
 .manifest-view {
   margin: 0 0 12px;
-  min-height: 160px;
+  min-height: 132px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
@@ -525,6 +532,18 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--surface-3);
+}
+
+.secondary-panel {
+  grid-template-columns: 1fr 1fr;
+}
+
+.explain-grid.compact .explain-step {
+  padding: 14px;
+}
+
+.nested {
+  margin-bottom: 10px;
 }
 
 .summary-label {
@@ -565,7 +584,6 @@ body[data-mode="terminal"] .slots-panel,
 body[data-mode="terminal"] .task-grid,
 body[data-mode="terminal"] .composer,
 body[data-mode="terminal"] .output-shell,
-body[data-mode="terminal"] .stat-card,
 body[data-mode="terminal"] .doctor-card,
 body[data-mode="terminal"] .task-card,
 body[data-mode="terminal"] .explain-step {
@@ -580,8 +598,8 @@ body[data-mode="terminal"] .workspace {
 }
 
 body[data-mode="terminal"] .topbar,
-body[data-mode="terminal"] .hero,
-body[data-mode="terminal"] .explain-panel,
+body[data-mode="terminal"] .setup-panel,
+body[data-mode="terminal"] .secondary-panel,
 body[data-mode="terminal"] .status-panel,
 body[data-mode="terminal"] .history-panel,
 body[data-mode="terminal"] .slots-panel,
@@ -597,43 +615,28 @@ body[data-mode="terminal"] * {
 }
 
 body[data-mode="terminal"] .brand-block p,
-body[data-mode="terminal"] .hero-copy p,
 body[data-mode="terminal"] .task-card p,
 body[data-mode="terminal"] .doctor-card p,
-body[data-mode="terminal"] .stat-card p,
 body[data-mode="terminal"] .explain-step p,
 body[data-mode="terminal"] #outputView,
 body[data-mode="terminal"] .slot-input label,
 body[data-mode="terminal"] .toggle,
 body[data-mode="terminal"] .eyebrow,
-body[data-mode="terminal"] .hero-tag,
 body[data-mode="terminal"] .task-kicker,
 body[data-mode="terminal"] .task-label {
   color: #9eb0c0;
 }
 
 body[data-mode="terminal"] .eyebrow,
-body[data-mode="terminal"] .hero-tag,
 body[data-mode="terminal"] .task-kicker,
 body[data-mode="terminal"] .task-label {
   background: transparent;
   border-color: #23303d;
 }
 
-body[data-mode="terminal"] .hero {
-  grid-template-columns: 1fr;
-}
-
-body[data-mode="terminal"] .hero-copy {
-  gap: 10px;
-}
-
-body[data-mode="terminal"] .hero-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
 body[data-mode="terminal"] .explain-panel {
-  display: none;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 body[data-mode="terminal"] .doctor-grid {
@@ -700,13 +703,13 @@ body[data-mode="terminal"] .primary-action {
   }
 
   .workspace,
-  .hero,
+  .setup-grid,
+  .secondary-panel,
   .doctor-grid,
   .slot-row,
   .import-grid,
   .task-grid,
-  .explain-grid,
-  body[data-mode="terminal"] .hero-stats {
+  .explain-grid {
     grid-template-columns: 1fr;
   }
 }
