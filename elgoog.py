@@ -315,6 +315,28 @@ def classify_error(message: str) -> str:
     return "error"
 
 
+def status_next_action(status: str) -> str:
+    actions = {
+        "auth": "check key and account access with `elgoog doctor --json` or `elgoog auth login`",
+        "quota": "retry later or switch slots after checking `elgoog doctor --json`",
+        "transient": "retry the same request; provider or network instability is likely temporary",
+        "busy": "wait for the current run to finish or stop the other Elgoog process",
+        "error": "inspect the detail and rerun with a smaller or clearer source set",
+        "success": "continue the session or export the result",
+    }
+    return actions.get(status, "inspect the result and decide the next bounded step")
+
+
+def format_status_block(*, status: str, slot: str, detail: str = "") -> str:
+    payload = {
+        "status": status,
+        "slot": slot,
+        "detail": detail or None,
+        "next_action": status_next_action(status),
+    }
+    return json.dumps(payload, indent=2, sort_keys=True)
+
+
 def load_slots(*, slots_path: Path | None = None, slots_json: str = "", env_name: str = "ELGOOG_API_KEYS") -> list[dict]:
     if slots_json.strip():
         data = json.loads(slots_json)
@@ -739,6 +761,7 @@ def _print_session_help() -> None:
     print(_style("Session commands", ANSI_BOLD) + ":")
     print("/help     show commands")
     print("/status   show session status")
+    print("/doctor   probe the current slot")
     print("/sources  show current source details")
     print("/last     print the last assistant response again")
     print("/compact  summarize earlier turns and keep the last 2")
@@ -786,6 +809,7 @@ def command_session(args: argparse.Namespace) -> None:
     print(_style("Source mode", ANSI_BOLD) + f": {source_manifest['source_mode']}")
     print(_style("Context budget", ANSI_BOLD) + f": {context_budget}")
     print(_style("Slot", ANSI_BOLD) + f": {args.slot}")
+    print(_style("Saved turns", ANSI_BOLD) + f": {len(turns)}")
     print()
     _print_session_help()
     print()
@@ -811,7 +835,21 @@ def command_session(args: argparse.Namespace) -> None:
                 "turns": len(turns),
                 "has_summary": bool(summary.strip()),
                 "slot": args.slot,
+                "next_action": "keep working here, use `/compact` if the session gets noisy",
             }, indent=2, sort_keys=True))
+            continue
+        if user_text == "/doctor":
+            current_slot = None
+            for slot in slots:
+                if slot["slot"] == args.slot:
+                    current_slot = slot
+                    break
+            current_slot = current_slot or (slots[0] if slots else None)
+            if not current_slot:
+                print("No configured slot available in this session.")
+                continue
+            status, detail = probe_slot(current_slot["api_key"])
+            print(format_status_block(status=status, slot=current_slot["slot"], detail=detail))
             continue
         if user_text == "/sources":
             print(json.dumps({
@@ -895,12 +933,7 @@ def command_session(args: argparse.Namespace) -> None:
             system_prompt=SESSION_SYSTEM_PROMPT,
         )
         if status != "success" or not response_text:
-            print(json.dumps({
-                "status": status,
-                "slot": used_slot or args.slot,
-                "error": error,
-                "next_action": "retry" if status == "transient" else "check auth/quota with `elgoog doctor --json`",
-            }, indent=2, sort_keys=True))
+            print(format_status_block(status=status, slot=used_slot or args.slot, detail=error or "unknown error"))
             continue
 
         last_response = response_text.strip()

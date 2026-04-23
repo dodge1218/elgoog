@@ -26,6 +26,10 @@
 - added `elgoog resume`
   - restores the last saved session by default
   - supports named session resume
+- improved in-session status handling
+  - `/doctor`
+  - clearer failure blocks
+  - explicit next-action guidance
 
 ## Current read
 

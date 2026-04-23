@@ -249,6 +249,7 @@ In-session commands:
 ```text
 /help
 /status
+/doctor
 /sources
 /last
 /compact
@@ -269,6 +270,12 @@ What `elgoog resume` does:
 - restores the last saved session by default
 - or restores a named session with `--name`
 - reuses saved repo/file/GitHub source details unless you override them
+
+What `/doctor` does in-session:
+
+- probes the current slot directly
+- reports `ready`, `auth`, `quota`, `transient`, or `error`
+- gives the next action inline instead of forcing you back out to guess
 
 Dry run:
 

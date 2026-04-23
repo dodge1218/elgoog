@@ -28,6 +28,15 @@ class ClassifyErrorTests(unittest.TestCase):
     def test_unknown_errors_fall_back_to_error(self) -> None:
         self.assertEqual(elgoog.classify_error("something odd happened"), "error")
 
+    def test_status_next_action_for_transient(self) -> None:
+        self.assertIn("retry", elgoog.status_next_action("transient"))
+
+    def test_format_status_block_includes_next_action(self) -> None:
+        payload = json.loads(elgoog.format_status_block(status="auth", slot="work", detail="permission denied"))
+        self.assertEqual(payload["status"], "auth")
+        self.assertEqual(payload["slot"], "work")
+        self.assertIn("doctor", payload["next_action"])
+
 
 class LoadSlotsTests(unittest.TestCase):
     def test_inline_string_slot_is_normalized(self) -> None:
