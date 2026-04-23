@@ -23,6 +23,9 @@
   - explicit `/compact`
   - explicit `/status`
   - explicit `/sources`
+- added `elgoog resume`
+  - restores the last saved session by default
+  - supports named session resume
 
 ## Current read
 

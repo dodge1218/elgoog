@@ -127,6 +127,13 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.slot, "work")
         self.assertEqual(args.name, "demo")
 
+    def test_resume_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["resume", "--name", "demo", "--slot", "work"])
+        self.assertEqual(args.command, "resume")
+        self.assertEqual(args.name, "demo")
+        self.assertEqual(args.slot, "work")
+
 
 class SessionTests(unittest.TestCase):
     def test_build_compaction_summary_keeps_recent_turns(self) -> None:
@@ -153,6 +160,20 @@ class SessionTests(unittest.TestCase):
         self.assertIn("## Session summary", prompt)
         self.assertIn("## Recent turns", prompt)
         self.assertIn("## New user input", prompt)
+
+    def test_mark_and_resolve_last_session(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            original_index = elgoog.SESSIONS_INDEX_PATH
+            try:
+                elgoog.SESSIONS_INDEX_PATH = Path(tmpdir) / "_index.json"
+                session_path = Path(tmpdir) / "demo.json"
+                elgoog._mark_last_session("demo", session_path)
+                self.assertEqual(elgoog._resolve_resume_name(""), "demo")
+            finally:
+                elgoog.SESSIONS_INDEX_PATH = original_index
+
+    def test_resolve_resume_name_prefers_explicit_name(self) -> None:
+        self.assertEqual(elgoog._resolve_resume_name("custom"), "custom")
 
 
 if __name__ == "__main__":

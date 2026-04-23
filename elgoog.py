@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / "state"
 RUNS_DIR = STATE_DIR / "runs"
 SESSIONS_DIR = STATE_DIR / "sessions"
+SESSIONS_INDEX_PATH = SESSIONS_DIR / "_index.json"
 OUTPUTS_DIR = ROOT / "outputs"
 LOGS_DIR = ROOT / "logs"
 LOCK_DIR = ROOT / "locks"
@@ -508,6 +509,8 @@ def command_welcome(_: argparse.Namespace) -> None:
     print_banner()
     print()
     payload = _doctor_payload()
+    sessions_index = _load_sessions_index()
+    last_session = str(sessions_index.get("last_session", "") or "").strip()
     print(_style("Status", ANSI_BOLD) + f": {payload['slots_available']} slot(s) ready")
     print(_style("Default model", ANSI_BOLD) + f": {payload['default_model']}")
     print()
@@ -519,8 +522,13 @@ def command_welcome(_: argparse.Namespace) -> None:
     else:
         preferred_slot = payload["slots"][0]["slot"]
         print(_style("1. ", ANSI_CYAN), f"elgoog session --repo . --slot {preferred_slot}", sep="")
-        print(_style("2. ", ANSI_CYAN), "elgoog help         ", _style("# task-oriented examples", ANSI_DIM), sep="")
-        print(_style("3. ", ANSI_CYAN), "elgoog web          ", _style("# optional local inspector", ANSI_DIM), sep="")
+        if last_session:
+            print(_style("2. ", ANSI_CYAN), f"elgoog resume       ", _style(f"# resume {last_session}", ANSI_DIM), sep="")
+            print(_style("3. ", ANSI_CYAN), "elgoog help         ", _style("# task-oriented examples", ANSI_DIM), sep="")
+            print(_style("4. ", ANSI_CYAN), "elgoog web          ", _style("# optional local inspector", ANSI_DIM), sep="")
+        else:
+            print(_style("2. ", ANSI_CYAN), "elgoog help         ", _style("# task-oriented examples", ANSI_DIM), sep="")
+            print(_style("3. ", ANSI_CYAN), "elgoog web          ", _style("# optional local inspector", ANSI_DIM), sep="")
     print()
     print(_style("Useful commands", ANSI_BOLD) + ":")
     print("- elgoog doctor --json")
@@ -562,6 +570,7 @@ def command_onboard(args: argparse.Namespace) -> None:
     print()
     print(_style("Optional commands", ANSI_BOLD) + ":")
     print("- elgoog doctor --json")
+    print("- elgoog resume")
     print("- elgoog web")
     print(_style("Tip", ANSI_BOLD) + ": run `elgoog help` if you want the short command map again.")
 
@@ -594,13 +603,16 @@ def command_help(_: argparse.Namespace) -> None:
     print("4. Start an interactive repo session")
     print("   elgoog session --repo . --slot gemini_slot_1")
     print()
-    print("5. Understand the current repo in one shot")
+    print("5. Resume the last saved session")
+    print("   elgoog resume")
+    print()
+    print("6. Understand the current repo in one shot")
     print("   elgoog understand --repo . --slot gemini_slot_1 --json")
     print()
-    print("6. Extract TODOs from notes")
+    print("7. Extract TODOs from notes")
     print("   elgoog todos --file ./notes.md --slot gemini_slot_1 --json")
     print()
-    print("7. Inspect outputs in the optional web surface")
+    print("8. Inspect outputs in the optional web surface")
     print("   elgoog web")
     print()
     print(_style("Notes", ANSI_BOLD) + ":")
@@ -608,6 +620,7 @@ def command_help(_: argparse.Namespace) -> None:
     print("- The web surface is optional.")
     print("- Slot names are local labels. They are not Gemini API keys.")
     print("- `elgoog session` keeps file-backed session state and supports `/compact` and `/status`.")
+    print("- `elgoog resume` restores the last saved session or a named session.")
 
 
 def _slugify_session_name(raw: str) -> str:
@@ -618,6 +631,21 @@ def _slugify_session_name(raw: str) -> str:
 
 def _session_path(name: str) -> Path:
     return SESSIONS_DIR / f"{_slugify_session_name(name)}.json"
+
+
+def _load_sessions_index() -> dict:
+    if not SESSIONS_INDEX_PATH.exists():
+        return {}
+    try:
+        data = json.loads(SESSIONS_INDEX_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_sessions_index(data: dict) -> None:
+    SESSIONS_INDEX_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SESSIONS_INDEX_PATH.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
 def _session_default_name(args: argparse.Namespace) -> str:
@@ -648,6 +676,24 @@ def _load_session_state(path: Path) -> dict:
 def _save_session_state(path: Path, state: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _mark_last_session(name: str, path: Path) -> None:
+    index = _load_sessions_index()
+    index["last_session"] = name
+    index["last_session_path"] = str(path)
+    index["updated_at"] = now_iso()
+    _save_sessions_index(index)
+
+
+def _resolve_resume_name(name: str = "") -> str:
+    if name.strip():
+        return name.strip()
+    index = _load_sessions_index()
+    last_name = str(index.get("last_session", "") or "").strip()
+    if not last_name:
+        raise SystemExit("No saved Elgoog session found. Start one with `elgoog session --repo .`.")
+    return last_name
 
 
 def _build_compaction_summary(turns: list[dict], *, keep_last: int = 2) -> tuple[str, list[dict]]:
@@ -799,6 +845,7 @@ def command_session(args: argparse.Namespace) -> None:
                 "context_budget": context_budget,
             }
             _save_session_state(session_path, state)
+            _mark_last_session(session_name, session_path)
             print("Session cleared.")
             continue
         if user_text == "/compact":
@@ -814,6 +861,7 @@ def command_session(args: argparse.Namespace) -> None:
                 "context_budget": context_budget,
             })
             _save_session_state(session_path, state)
+            _mark_last_session(session_name, session_path)
             print(f"Compacted session. Summary={'yes' if summary else 'no'} turns_kept={len(turns)}")
             continue
         if user_text == "/exit":
@@ -828,6 +876,7 @@ def command_session(args: argparse.Namespace) -> None:
                 "context_budget": context_budget,
             })
             _save_session_state(session_path, state)
+            _mark_last_session(session_name, session_path)
             print(f"Saved session: {session_path}")
             return
 
@@ -874,6 +923,29 @@ def command_session(args: argparse.Namespace) -> None:
             "input_github_repo_url": github_repo_url or None,
         })
         _save_session_state(session_path, state)
+        _mark_last_session(session_name, session_path)
+
+
+def command_resume(args: argparse.Namespace) -> None:
+    session_name = _resolve_resume_name(str(getattr(args, "name", "") or ""))
+    session_path = _session_path(session_name)
+    state = _load_session_state(session_path)
+    if not state:
+        raise SystemExit(f"No saved Elgoog session found at {session_path}")
+    resumed_args = argparse.Namespace(
+        text="",
+        file=args.file if getattr(args, "file", None) else state.get("input_file_path"),
+        repo=args.repo if getattr(args, "repo", None) else state.get("input_repo_path"),
+        github=args.github if getattr(args, "github", None) else state.get("input_github_repo_url"),
+        name=session_name,
+        context_budget=args.context_budget if getattr(args, "context_budget", None) else state.get("context_budget") or "medium",
+        slot=args.slot if getattr(args, "slot", None) else state.get("slot") or "gemini_slot_1",
+        slots_path=args.slots_path,
+        slots_json=args.slots_json,
+        api_key=args.api_key,
+        model=args.model,
+    )
+    command_session(resumed_args)
 
 def command_doctor(args: argparse.Namespace) -> None:
     slots_path = Path(args.slots_path).expanduser() if args.slots_path else (STATE_DIR / "slots.json")
@@ -1098,6 +1170,19 @@ def build_parser() -> argparse.ArgumentParser:
     session.add_argument("--api-key", help="Explicit Gemini API key")
     session.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model")
     session.set_defaults(func=command_session)
+
+    resume = sub.add_parser("resume", help="Resume the last saved session or a named session")
+    resume.add_argument("--name", help="Optional saved session name")
+    resume.add_argument("--file", help="Override input file")
+    resume.add_argument("--repo", help="Override local repo path")
+    resume.add_argument("--github", help="Override public GitHub repo URL")
+    resume.add_argument("--context-budget", choices=("small", "medium", "large"), help="Override context budget")
+    resume.add_argument("--slot", help="Override slot")
+    resume.add_argument("--slots-path", help="Path to slots JSON")
+    resume.add_argument("--slots-json", default="", help="Inline JSON array of slots")
+    resume.add_argument("--api-key", help="Explicit Gemini API key")
+    resume.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model")
+    resume.set_defaults(func=command_resume)
 
     doctor = sub.add_parser("doctor", help="Show auth and slot readiness")
     doctor.add_argument("--slots-path", help="Path to slots JSON")

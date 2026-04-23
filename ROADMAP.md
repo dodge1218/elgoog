@@ -37,6 +37,7 @@ Ship only what directly answers the current harness gap:
 - context budget policy
 - file-backed artifacts and manifests
 - interactive CLI session mode
+- last-session resume
 - transparent compaction and resumable session state
 
 ## V2

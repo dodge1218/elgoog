@@ -119,6 +119,7 @@ elgoog onboard
 elgoog auth login
 elgoog auth add
 elgoog session
+elgoog resume
 elgoog recover
 elgoog understand
 elgoog todos
@@ -181,6 +182,8 @@ If you want the shortest path to a working local setup:
    - `elgoog doctor --json`
 4. start an interactive repo session:
    - `elgoog session --repo . --slot gemini_slot_1`
+5. resume later:
+   - `elgoog resume`
 5. optionally use the web surface later for setup and inspection:
    - `elgoog web`
 
@@ -196,6 +199,8 @@ Task-native commands:
 
 ```bash
 elgoog session --repo . --slot gemini_slot_1
+
+elgoog resume
 
 elgoog recover --text "I have notes and a messy repo state. Recover the next bounded steps." --slot gemini_slot_1 --json
 
@@ -258,6 +263,12 @@ What `/compact` does:
 - writes updated state to `state/sessions/`
 
 This is intentional. Elgoog does not hide memory behavior behind vague “AI workspace” language.
+
+What `elgoog resume` does:
+
+- restores the last saved session by default
+- or restores a named session with `--name`
+- reuses saved repo/file/GitHub source details unless you override them
 
 Dry run:
 
