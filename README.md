@@ -45,6 +45,24 @@ Recent public developer demand around Gemini clusters around four recurring comp
 
 Elgoog is built around those complaints, not around novelty features.
 
+## Why not just use Gemini CLI?
+
+If `gemini-cli` already does what you need, use `gemini-cli`.
+
+Elgoog is not justified as “Gemini, but again.”
+
+It is only justified if you want a narrower terminal workflow with:
+
+- explicit source manifests for what was included and why
+- deterministic context budgets instead of one default intake shape
+- file-backed session state that you can resume and export cleanly
+- a developer-workbench surface shaped around repo understanding and work recovery
+
+The split is:
+
+- `gemini-cli`: official general Gemini tool
+- `Elgoog`: narrower CLI workbench for inspectable, resumable developer work
+
 ## Core jobs
 
 The user-facing jobs are:
