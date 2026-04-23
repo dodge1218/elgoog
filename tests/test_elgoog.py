@@ -119,6 +119,41 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.command, "plan")
         self.assertEqual(args.context_budget, "large")
 
+    def test_session_parser_accepts_repo(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["session", "--repo", ".", "--slot", "work", "--name", "demo"])
+        self.assertEqual(args.command, "session")
+        self.assertEqual(args.repo, ".")
+        self.assertEqual(args.slot, "work")
+        self.assertEqual(args.name, "demo")
+
+
+class SessionTests(unittest.TestCase):
+    def test_build_compaction_summary_keeps_recent_turns(self) -> None:
+        turns = [
+            {"user": "a", "assistant": "one"},
+            {"user": "b", "assistant": "two"},
+            {"user": "c", "assistant": "three"},
+        ]
+        summary, recent = elgoog._build_compaction_summary(turns, keep_last=2)
+        self.assertIn("Session summary from earlier turns:", summary)
+        self.assertEqual(len(recent), 2)
+        self.assertEqual(recent[0]["user"], "b")
+
+    def test_session_prompt_includes_new_input(self) -> None:
+        prompt = elgoog._session_prompt(
+            source_context="repo context",
+            source_mode="repo",
+            context_budget="medium",
+            summary="prior summary",
+            turns=[{"user": "what does this do", "assistant": "it does x"}],
+            user_text="what should I inspect next?",
+        )
+        self.assertIn("## Source context", prompt)
+        self.assertIn("## Session summary", prompt)
+        self.assertIn("## Recent turns", prompt)
+        self.assertIn("## New user input", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

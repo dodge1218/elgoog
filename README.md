@@ -10,6 +10,7 @@ Elgoog is for developers who need Gemini to behave like reliable tooling instead
 
 The product focus is:
 
+- terminal-first developer workflow
 - repo understanding
 - unfinished-work recovery
 - bounded TODO generation
@@ -117,6 +118,7 @@ elgoog help
 elgoog onboard
 elgoog auth login
 elgoog auth add
+elgoog session
 elgoog recover
 elgoog understand
 elgoog todos
@@ -177,8 +179,8 @@ If you want the shortest path to a working local setup:
    - `elgoog auth add`
 3. verify readiness:
    - `elgoog doctor --json`
-4. run a real task:
-   - `elgoog understand --text "Understand this repo and give me the next 3 bounded tasks." --slot gemini_slot_1 --json`
+4. start an interactive repo session:
+   - `elgoog session --repo . --slot gemini_slot_1`
 5. optionally use the web surface later for setup and inspection:
    - `elgoog web`
 
@@ -193,6 +195,8 @@ elgoog help
 Task-native commands:
 
 ```bash
+elgoog session --repo . --slot gemini_slot_1
+
 elgoog recover --text "I have notes and a messy repo state. Recover the next bounded steps." --slot gemini_slot_1 --json
 
 elgoog understand --repo . --slot gemini_slot_1 --json
@@ -217,6 +221,43 @@ Context budget:
 - `small`: tight first pass, less repo/context included
 - `medium`: default
 - `large`: wider context when the task genuinely needs it
+
+## Interactive session mode
+
+`elgoog session` is the CLI path for ongoing work.
+
+It is:
+
+- file-backed
+- source-aware
+- explicit about compaction
+- local and inspectable
+
+Example:
+
+```bash
+elgoog session --repo . --slot gemini_slot_1
+```
+
+In-session commands:
+
+```text
+/help
+/status
+/sources
+/last
+/compact
+/clear
+/exit
+```
+
+What `/compact` does:
+
+- summarizes older turns into a visible session summary
+- keeps the most recent turns intact
+- writes updated state to `state/sessions/`
+
+This is intentional. Elgoog does not hide memory behavior behind vague “AI workspace” language.
 
 Dry run:
 

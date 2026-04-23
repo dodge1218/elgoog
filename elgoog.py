@@ -19,6 +19,7 @@ from urllib.request import Request, urlopen
 ROOT = Path(__file__).resolve().parent
 STATE_DIR = ROOT / "state"
 RUNS_DIR = STATE_DIR / "runs"
+SESSIONS_DIR = STATE_DIR / "sessions"
 OUTPUTS_DIR = ROOT / "outputs"
 LOGS_DIR = ROOT / "logs"
 LOCK_DIR = ROOT / "locks"
@@ -159,6 +160,23 @@ Rules:
 """.strip(),
 }
 
+SESSION_SYSTEM_PROMPT = """
+You are a developer workbench assistant in an interactive terminal session.
+Help a developer move work forward using the provided source context, prior session summary, and recent turns.
+
+Priorities:
+- answer directly
+- stay grounded in the provided repo/file/project context
+- prefer bounded tasks, likely entrypoints, concrete files, and next actions
+- be honest about missing context
+- avoid generic software essays
+- do not describe yourself or your role
+
+When the user asks for plans or TODOs, keep them concise and shippable.
+When the user asks what a repo does, prioritize code shape, entrypoints, manifests, and project structure over README copy.
+Output concise markdown.
+""".strip()
+
 QUOTA_MARKERS = ("resource_exhausted", "quota", "429", "rate_limit")
 TRANSIENT_MARKERS = ("503", "504", "timed out", "temporarily unavailable", "service unavailable", "unavailable", "deadline exceeded")
 BANNER = r"""
@@ -279,7 +297,7 @@ def read_optional_text_arg(args: argparse.Namespace) -> str:
 
 
 def ensure_dirs() -> None:
-    for path in (STATE_DIR, RUNS_DIR, OUTPUTS_DIR, LOGS_DIR, LOCK_DIR):
+    for path in (STATE_DIR, RUNS_DIR, SESSIONS_DIR, OUTPUTS_DIR, LOGS_DIR, LOCK_DIR):
         path.mkdir(parents=True, exist_ok=True)
 
 
@@ -500,7 +518,7 @@ def command_welcome(_: argparse.Namespace) -> None:
         print(_style("3. ", ANSI_CYAN), "elgoog doctor --json", _style("# verify readiness", ANSI_DIM), sep="")
     else:
         preferred_slot = payload["slots"][0]["slot"]
-        print(_style("1. ", ANSI_CYAN), f"elgoog run --text \"Understand this repo and give me the next 3 bounded tasks.\" --task-class planning --slot {preferred_slot} --json", sep="")
+        print(_style("1. ", ANSI_CYAN), f"elgoog session --repo . --slot {preferred_slot}", sep="")
         print(_style("2. ", ANSI_CYAN), "elgoog help         ", _style("# task-oriented examples", ANSI_DIM), sep="")
         print(_style("3. ", ANSI_CYAN), "elgoog web          ", _style("# optional local inspector", ANSI_DIM), sep="")
     print()
@@ -540,7 +558,7 @@ def command_onboard(args: argparse.Namespace) -> None:
     print()
     print(_style("Recommended next step", ANSI_BOLD) + ":")
     preferred_slot = payload["slots"][0]["slot"]
-    print(f"elgoog run --text \"Understand this repo and give me the next 3 bounded tasks.\" --task-class planning --slot {preferred_slot} --json")
+    print(f"elgoog session --repo . --slot {preferred_slot}")
     print()
     print(_style("Optional commands", ANSI_BOLD) + ":")
     print("- elgoog doctor --json")
@@ -573,20 +591,289 @@ def command_help(_: argparse.Namespace) -> None:
     print("3. Verify readiness")
     print("   elgoog doctor --json")
     print()
-    print("4. Run a planning task")
-    print("   elgoog run --text \"Understand this repo and give me the next 3 bounded tasks.\" --task-class planning --slot gemini_slot_1 --json")
+    print("4. Start an interactive repo session")
+    print("   elgoog session --repo . --slot gemini_slot_1")
     print()
-    print("5. Extract TODOs from notes")
-    print("   elgoog run --file ./notes.md --task-class cheap_extract --slot gemini_slot_1 --json")
+    print("5. Understand the current repo in one shot")
+    print("   elgoog understand --repo . --slot gemini_slot_1 --json")
     print()
-    print("6. Inspect outputs in the optional web surface")
+    print("6. Extract TODOs from notes")
+    print("   elgoog todos --file ./notes.md --slot gemini_slot_1 --json")
+    print()
+    print("7. Inspect outputs in the optional web surface")
     print("   elgoog web")
     print()
     print(_style("Notes", ANSI_BOLD) + ":")
     print("- Elgoog is CLI-first.")
     print("- The web surface is optional.")
     print("- Slot names are local labels. They are not Gemini API keys.")
+    print("- `elgoog session` keeps file-backed session state and supports `/compact` and `/status`.")
 
+
+def _slugify_session_name(raw: str) -> str:
+    clean = "".join(ch.lower() if ch.isalnum() else "-" for ch in raw.strip())
+    clean = "-".join(part for part in clean.split("-") if part)
+    return clean or "default"
+
+
+def _session_path(name: str) -> Path:
+    return SESSIONS_DIR / f"{_slugify_session_name(name)}.json"
+
+
+def _session_default_name(args: argparse.Namespace) -> str:
+    if getattr(args, "name", None):
+        return str(args.name)
+    repo = str(getattr(args, "repo", "") or "").strip()
+    github = str(getattr(args, "github", "") or "").strip()
+    file_path = str(getattr(args, "file", "") or "").strip()
+    if repo:
+        return Path(repo).resolve().name or "repo"
+    if github:
+        return github.rstrip("/").split("/")[-1] or "github"
+    if file_path:
+        return Path(file_path).stem or "file"
+    return "default"
+
+
+def _load_session_state(path: Path) -> dict:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _save_session_state(path: Path, state: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def _build_compaction_summary(turns: list[dict], *, keep_last: int = 2) -> tuple[str, list[dict]]:
+    if len(turns) <= keep_last:
+        return "", turns
+    older = turns[:-keep_last]
+    recent = turns[-keep_last:]
+    lines = ["Session summary from earlier turns:"]
+    for idx, turn in enumerate(older, start=1):
+        user_text = str(turn.get("user", "")).strip().replace("\n", " ")
+        assistant_text = str(turn.get("assistant", "")).strip().replace("\n", " ")
+        if len(user_text) > 140:
+            user_text = user_text[:137] + "..."
+        if len(assistant_text) > 180:
+            assistant_text = assistant_text[:177] + "..."
+        lines.append(f"{idx}. User: {user_text}")
+        lines.append(f"   Result: {assistant_text}")
+    return "\n".join(lines), recent
+
+
+def _session_prompt(*, source_context: str, source_mode: str, context_budget: str, summary: str, turns: list[dict], user_text: str) -> str:
+    sections = [
+        "Session mode: developer workbench",
+        f"Context budget: {context_budget}",
+        f"Source mode: {source_mode}",
+    ]
+    if source_context:
+        sections.append("## Source context\n" + source_context.strip())
+    if summary:
+        sections.append("## Session summary\n" + summary.strip())
+    if turns:
+        history_lines = []
+        for idx, turn in enumerate(turns, start=1):
+            history_lines.append(f"### Turn {idx} user\n{str(turn.get('user', '')).strip()}")
+            history_lines.append(f"### Turn {idx} assistant\n{str(turn.get('assistant', '')).strip()}")
+        sections.append("## Recent turns\n" + "\n\n".join(history_lines))
+    sections.append("## New user input\n" + user_text.strip())
+    sections.append("Answer the new user input directly using the source context and recent turns.")
+    return "\n\n".join(part for part in sections if part.strip())
+
+
+def _print_session_help() -> None:
+    print(_style("Session commands", ANSI_BOLD) + ":")
+    print("/help     show commands")
+    print("/status   show session status")
+    print("/sources  show current source details")
+    print("/last     print the last assistant response again")
+    print("/compact  summarize earlier turns and keep the last 2")
+    print("/clear    clear all turns and summary")
+    print("/exit     save and exit")
+
+
+def command_session(args: argparse.Namespace) -> None:
+    ensure_dirs()
+    prompt_text = str(getattr(args, "text", "") or "").strip()
+    file_path = str(getattr(args, "file", "") or "").strip()
+    repo_path = str(getattr(args, "repo", "") or "").strip()
+    github_repo_url = str(getattr(args, "github", "") or "").strip()
+    context_budget = str(getattr(args, "context_budget", "") or "medium")
+    if not any([prompt_text, file_path, repo_path, github_repo_url]):
+        raise SystemExit("Provide --text, --file, --repo, --github, or stdin.")
+
+    from elgoog_server import build_run_text, _source_manifest
+
+    source_context = build_run_text("session_context", prompt_text, file_path, repo_path, github_repo_url, context_budget)
+    source_manifest = _source_manifest("session_context", file_path, repo_path, github_repo_url, prompt_text, source_context, context_budget)
+    session_name = _session_default_name(args)
+    session_path = _session_path(session_name)
+    state = _load_session_state(session_path)
+    turns = state.get("turns", []) if isinstance(state.get("turns"), list) else []
+    summary = str(state.get("summary", "") or "")
+
+    slots: list[dict] = []
+    slots_path = Path(args.slots_path).expanduser() if args.slots_path else (STATE_DIR / "slots.json")
+    if args.api_key:
+        slots = [{"slot": args.slot, "api_key": args.api_key}]
+    else:
+        slots = load_slots(slots_path=slots_path, slots_json=args.slots_json)
+        if not slots:
+            env_key = os.environ.get("GEMINI_API_KEY", "").strip()
+            if env_key:
+                slots = [{"slot": args.slot, "api_key": env_key}]
+    if not slots:
+        raise SystemExit("No Gemini slot/key available. Use elgoog auth add or pass --api-key.")
+
+    print_banner()
+    print()
+    print(_style("Session", ANSI_BOLD) + f": {session_name}")
+    print(_style("State file", ANSI_BOLD) + f": {session_path}")
+    print(_style("Source mode", ANSI_BOLD) + f": {source_manifest['source_mode']}")
+    print(_style("Context budget", ANSI_BOLD) + f": {context_budget}")
+    print(_style("Slot", ANSI_BOLD) + f": {args.slot}")
+    print()
+    _print_session_help()
+    print()
+
+    last_response = str(state.get("last_response", "") or "")
+    while True:
+        try:
+            user_text = input("elgoog> ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            user_text = "/exit"
+        if not user_text:
+            continue
+        if user_text == "/help":
+            _print_session_help()
+            continue
+        if user_text == "/status":
+            print(json.dumps({
+                "session": session_name,
+                "state_file": str(session_path),
+                "source_mode": source_manifest["source_mode"],
+                "context_budget": context_budget,
+                "turns": len(turns),
+                "has_summary": bool(summary.strip()),
+                "slot": args.slot,
+            }, indent=2, sort_keys=True))
+            continue
+        if user_text == "/sources":
+            print(json.dumps({
+                "source_mode": source_manifest["source_mode"],
+                "input_file_path": file_path or None,
+                "input_repo_path": repo_path or None,
+                "input_github_repo_url": github_repo_url or None,
+                "resolved_input_chars": len(source_context),
+                "resolved_input_sha256": source_manifest["resolved_input_sha256"],
+                "context_budget": context_budget,
+            }, indent=2, sort_keys=True))
+            continue
+        if user_text == "/last":
+            if last_response:
+                print(last_response)
+            else:
+                print("No prior response in this session.")
+            continue
+        if user_text == "/clear":
+            turns = []
+            summary = ""
+            last_response = ""
+            state = {
+                "name": session_name,
+                "created_at": state.get("created_at") or now_iso(),
+                "updated_at": now_iso(),
+                "summary": "",
+                "turns": [],
+                "last_response": "",
+                "source_mode": source_manifest["source_mode"],
+                "context_budget": context_budget,
+            }
+            _save_session_state(session_path, state)
+            print("Session cleared.")
+            continue
+        if user_text == "/compact":
+            summary, turns = _build_compaction_summary(turns)
+            state.update({
+                "name": session_name,
+                "created_at": state.get("created_at") or now_iso(),
+                "updated_at": now_iso(),
+                "summary": summary,
+                "turns": turns,
+                "last_response": last_response,
+                "source_mode": source_manifest["source_mode"],
+                "context_budget": context_budget,
+            })
+            _save_session_state(session_path, state)
+            print(f"Compacted session. Summary={'yes' if summary else 'no'} turns_kept={len(turns)}")
+            continue
+        if user_text == "/exit":
+            state.update({
+                "name": session_name,
+                "created_at": state.get("created_at") or now_iso(),
+                "updated_at": now_iso(),
+                "summary": summary,
+                "turns": turns,
+                "last_response": last_response,
+                "source_mode": source_manifest["source_mode"],
+                "context_budget": context_budget,
+            })
+            _save_session_state(session_path, state)
+            print(f"Saved session: {session_path}")
+            return
+
+        prompt = _session_prompt(
+            source_context=source_context,
+            source_mode=source_manifest["source_mode"],
+            context_budget=context_budget,
+            summary=summary,
+            turns=turns[-2:],
+            user_text=user_text,
+        )
+        status, used_slot, response_text, error = attempt_slots(
+            slots=slots,
+            prompt_text=prompt,
+            model_name=args.model,
+            system_prompt=SESSION_SYSTEM_PROMPT,
+        )
+        if status != "success" or not response_text:
+            print(json.dumps({
+                "status": status,
+                "slot": used_slot or args.slot,
+                "error": error,
+                "next_action": "retry" if status == "transient" else "check auth/quota with `elgoog doctor --json`",
+            }, indent=2, sort_keys=True))
+            continue
+
+        last_response = response_text.strip()
+        print()
+        print(last_response)
+        print()
+        turns.append({"timestamp": now_iso(), "user": user_text, "assistant": last_response})
+        state.update({
+            "name": session_name,
+            "created_at": state.get("created_at") or now_iso(),
+            "updated_at": now_iso(),
+            "summary": summary,
+            "turns": turns,
+            "last_response": last_response,
+            "source_mode": source_manifest["source_mode"],
+            "context_budget": context_budget,
+            "slot": used_slot or args.slot,
+            "input_file_path": file_path or None,
+            "input_repo_path": repo_path or None,
+            "input_github_repo_url": github_repo_url or None,
+        })
+        _save_session_state(session_path, state)
 
 def command_doctor(args: argparse.Namespace) -> None:
     slots_path = Path(args.slots_path).expanduser() if args.slots_path else (STATE_DIR / "slots.json")
@@ -797,6 +1084,20 @@ def build_parser() -> argparse.ArgumentParser:
     web = sub.add_parser("web", help="Start the optional local web surface")
     web.add_argument("--open-browser", action="store_true", help="Open the browser automatically")
     web.set_defaults(func=command_web)
+
+    session = sub.add_parser("session", help="Start an interactive CLI session")
+    session.add_argument("--text", help="Input text context")
+    session.add_argument("--file", help="Input file")
+    session.add_argument("--repo", help="Local repo path")
+    session.add_argument("--github", help="Public GitHub repo URL")
+    session.add_argument("--name", help="Optional session name")
+    session.add_argument("--context-budget", default="medium", choices=("small", "medium", "large"), help="How much repo/context material to include")
+    session.add_argument("--slot", default="gemini_slot_1", help="Identifier for the Gemini slot/project used")
+    session.add_argument("--slots-path", help="Path to slots JSON")
+    session.add_argument("--slots-json", default="", help="Inline JSON array of slots")
+    session.add_argument("--api-key", help="Explicit Gemini API key")
+    session.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model")
+    session.set_defaults(func=command_session)
 
     doctor = sub.add_parser("doctor", help="Show auth and slot readiness")
     doctor.add_argument("--slots-path", help="Path to slots JSON")
