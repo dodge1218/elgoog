@@ -44,6 +44,10 @@ Ship only what directly answers the current harness gap:
 
 Build later only if v1 proves useful:
 
+- bounded continuation helpers:
+  - `--until done|blocked`
+  - `--max-steps`
+  - explicit retry policy
 - richer output ranking and replay
 - stronger export bundles
 - better optional web inspector
