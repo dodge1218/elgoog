@@ -364,6 +364,7 @@ Real example outputs live in:
 Release checklist:
 
 - [RELEASE.md](RELEASE.md)
+- [RELEASE_STATUS.md](RELEASE_STATUS.md)
 
 ## Runtime model
 

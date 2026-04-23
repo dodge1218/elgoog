@@ -38,6 +38,10 @@
   - session flow example
   - release checklist
   - local screenshots ignored
+- completed a release-check pass
+  - core CLI path verified
+  - session/resume/export verified
+  - editable install verified in a fresh virtualenv
 
 ## Current read
 
