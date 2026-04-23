@@ -37,6 +37,20 @@ class ClassifyErrorTests(unittest.TestCase):
         self.assertEqual(payload["slot"], "work")
         self.assertIn("doctor", payload["next_action"])
 
+    def test_session_scope_payload_includes_model_and_scope_rule(self) -> None:
+        payload = elgoog._session_scope_payload(
+            file_path="",
+            repo_path=".",
+            github_repo_url="",
+            source_manifest={"source_mode": "files_first", "resolved_input_sha256": "abc", "resolved_input_chars": 12},
+            context_budget="medium",
+            model="models/gemini-2.5-flash",
+            slot="work",
+        )
+        self.assertEqual(payload["input_repo_path"], ".")
+        self.assertEqual(payload["model"], "models/gemini-2.5-flash")
+        self.assertIn("only uses the source", payload["scope_rule"])
+
 
 class LoadSlotsTests(unittest.TestCase):
     def test_inline_string_slot_is_normalized(self) -> None:

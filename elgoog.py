@@ -195,6 +195,8 @@ ANSI_DIM = "\033[2m"
 ANSI_CYAN = "\033[36m"
 ANSI_WHITE = "\033[37m"
 ANSI_GREY = "\033[90m"
+ANSI_GREEN = "\033[32m"
+ANSI_YELLOW = "\033[33m"
 
 
 def now_iso() -> str:
@@ -335,6 +337,46 @@ def format_status_block(*, status: str, slot: str, detail: str = "") -> str:
         "next_action": status_next_action(status),
     }
     return json.dumps(payload, indent=2, sort_keys=True)
+
+
+def _session_scope_payload(*, file_path: str, repo_path: str, github_repo_url: str, source_manifest: dict, context_budget: str, model: str, slot: str) -> dict:
+    return {
+        "scope_rule": "Elgoog only uses the source you started the session with.",
+        "input_file_path": file_path or None,
+        "input_repo_path": repo_path or None,
+        "input_github_repo_url": github_repo_url or None,
+        "source_mode": source_manifest["source_mode"],
+        "resolved_input_chars": source_manifest.get("resolved_input_chars"),
+        "resolved_input_sha256": source_manifest["resolved_input_sha256"],
+        "context_budget": context_budget,
+        "model": model,
+        "slot": slot,
+    }
+
+
+def _log_provider_event(*, task: str, task_class: str, slot: str, model: str, status: str, error: str | None = None) -> None:
+    with PROVIDER_LOG.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps({
+            "timestamp": now_iso(),
+            "task": task,
+            "task_class": task_class,
+            "slot": slot,
+            "model": model,
+            "status": status,
+            "error_class": classify_error(error or "") if status != "success" else None,
+            "error": error,
+        }, sort_keys=True) + "\n")
+
+
+def _print_assistant_block(text: str) -> None:
+    header = _style("assistant", ANSI_BOLD, ANSI_GREEN)
+    rule = _style("─" * 72, ANSI_GREY)
+    print()
+    print(rule)
+    print(header)
+    print(text.strip())
+    print(rule)
+    print()
 
 
 def load_slots(*, slots_path: Path | None = None, slots_json: str = "", env_name: str = "ELGOOG_API_KEYS") -> list[dict]:
@@ -804,6 +846,8 @@ def _print_session_help() -> None:
     print("/help     show commands")
     print("/status   show session status")
     print("/doctor   probe the current slot")
+    print("/model    show current model and slot")
+    print("/scope    show what this session can actually see")
     print("/sources  show current source details")
     print("/last     print the last assistant response again")
     print("/compact  summarize earlier turns and keep the last 2")
@@ -894,16 +938,34 @@ def command_session(args: argparse.Namespace) -> None:
             status, detail = probe_slot(current_slot["api_key"])
             print(format_status_block(status=status, slot=current_slot["slot"], detail=detail))
             continue
-        if user_text == "/sources":
+        if user_text == "/model":
             print(json.dumps({
-                "source_mode": source_manifest["source_mode"],
-                "input_file_path": file_path or None,
-                "input_repo_path": repo_path or None,
-                "input_github_repo_url": github_repo_url or None,
-                "resolved_input_chars": len(source_context),
-                "resolved_input_sha256": source_manifest["resolved_input_sha256"],
+                "model": args.model,
+                "slot": args.slot,
                 "context_budget": context_budget,
             }, indent=2, sort_keys=True))
+            continue
+        if user_text == "/scope":
+            print(json.dumps(_session_scope_payload(
+                file_path=file_path,
+                repo_path=repo_path,
+                github_repo_url=github_repo_url,
+                source_manifest=source_manifest,
+                context_budget=context_budget,
+                model=args.model,
+                slot=args.slot,
+            ), indent=2, sort_keys=True))
+            continue
+        if user_text == "/sources":
+            print(json.dumps(_session_scope_payload(
+                file_path=file_path,
+                repo_path=repo_path,
+                github_repo_url=github_repo_url,
+                source_manifest=source_manifest,
+                context_budget=context_budget,
+                model=args.model,
+                slot=args.slot,
+            ), indent=2, sort_keys=True))
             continue
         if user_text == "/last":
             if last_response:
@@ -998,14 +1060,22 @@ def command_session(args: argparse.Namespace) -> None:
             model_name=args.model,
             system_prompt=SESSION_SYSTEM_PROMPT,
         )
+        if status == "transient":
+            _log_provider_event(task="session_turn", task_class="session", slot=used_slot or args.slot, model=args.model, status=status, error=error)
+            status, used_slot, response_text, error = attempt_slots(
+                slots=slots,
+                prompt_text=prompt,
+                model_name=args.model,
+                system_prompt=SESSION_SYSTEM_PROMPT,
+            )
         if status != "success" or not response_text:
+            _log_provider_event(task="session_turn", task_class="session", slot=used_slot or args.slot, model=args.model, status=status, error=error)
             print(format_status_block(status=status, slot=used_slot or args.slot, detail=error or "unknown error"))
             continue
 
         last_response = response_text.strip()
-        print()
-        print(last_response)
-        print()
+        _log_provider_event(task="session_turn", task_class="session", slot=used_slot or args.slot, model=args.model, status="success")
+        _print_assistant_block(last_response)
         turns.append({"timestamp": now_iso(), "user": user_text, "assistant": last_response})
         state.update({
             "name": session_name,
