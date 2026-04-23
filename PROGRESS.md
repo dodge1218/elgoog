@@ -42,6 +42,14 @@
   - core CLI path verified
   - session/resume/export verified
   - editable install verified in a fresh virtualenv
+- added first-class inspection commands
+  - `status`
+  - `slots list/remove`
+  - `runs list/show`
+- improved session visibility
+  - `/model`
+  - `/scope`
+  - session turns logged to provider log
 
 ## Current read
 

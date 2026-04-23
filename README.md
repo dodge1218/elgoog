@@ -136,9 +136,12 @@ elgoog help
 elgoog onboard
 elgoog auth login
 elgoog auth add
+elgoog slots list
+elgoog status
 elgoog session
 elgoog resume
 elgoog export
+elgoog runs list
 elgoog recover
 elgoog understand
 elgoog todos
@@ -201,13 +204,18 @@ If you want the shortest path to a working local setup:
    - `elgoog auth add`
 3. verify readiness:
    - `elgoog doctor --json`
-4. start an interactive repo session:
+4. inspect current state:
+   - `elgoog status --json`
+5. start an interactive repo session:
    - `elgoog session --repo . --slot gemini_slot_1`
-5. resume later:
+6. resume later:
    - `elgoog resume`
-6. export a saved session bundle:
+7. export a saved session bundle:
    - `elgoog export`
-7. optionally use the web surface later for setup and inspection:
+8. inspect saved slots and recent runs:
+   - `elgoog slots list --json`
+   - `elgoog runs list`
+9. optionally use the web surface later for setup and inspection:
    - `elgoog web`
 
 If you want the starter command map explicitly:
@@ -232,6 +240,12 @@ elgoog session --repo . --slot gemini_slot_1
 elgoog resume
 
 elgoog export
+
+elgoog status --json
+
+elgoog slots list --json
+
+elgoog runs list
 
 elgoog recover --text "I have notes and a messy repo state. Recover the next bounded steps." --slot gemini_slot_1 --json
 
@@ -281,6 +295,8 @@ In-session commands:
 /help
 /status
 /doctor
+/model
+/scope
 /sources
 /last
 /compact
@@ -311,6 +327,21 @@ What `elgoog export` does:
   - JSON state bundle
   - readable markdown transcript
 - stores both under `outputs/`
+
+Top-level inspection commands:
+
+- `elgoog status --json`
+  - current slot
+  - last session
+  - last provider status
+  - next action
+- `elgoog slots list --json`
+  - saved slots
+  - readiness state
+- `elgoog runs list`
+  - recent run artifacts
+- `elgoog runs show /abs/path/to/run.json`
+  - one saved run record
 
 What `/doctor` does in-session:
 

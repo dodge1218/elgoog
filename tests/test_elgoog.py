@@ -164,6 +164,40 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.name, "demo")
         self.assertTrue(args.json)
 
+    def test_status_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["status", "--json"])
+        self.assertEqual(args.command, "status")
+        self.assertTrue(args.json)
+
+    def test_slots_list_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["slots", "list", "--json"])
+        self.assertEqual(args.command, "slots")
+        self.assertEqual(args.slots_command, "list")
+        self.assertTrue(args.json)
+
+    def test_slots_remove_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["slots", "remove", "work"])
+        self.assertEqual(args.command, "slots")
+        self.assertEqual(args.slots_command, "remove")
+        self.assertEqual(args.slot, "work")
+
+    def test_runs_list_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["runs", "list", "--limit", "5"])
+        self.assertEqual(args.command, "runs")
+        self.assertEqual(args.runs_command, "list")
+        self.assertEqual(args.limit, 5)
+
+    def test_runs_show_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["runs", "show", "state/runs/demo.json"])
+        self.assertEqual(args.command, "runs")
+        self.assertEqual(args.runs_command, "show")
+        self.assertEqual(args.artifact, "state/runs/demo.json")
+
 
 class DefaultFlowTests(unittest.TestCase):
     def test_default_args_for_slot_uses_repo_session_defaults(self) -> None:

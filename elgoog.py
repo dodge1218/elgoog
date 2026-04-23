@@ -492,6 +492,74 @@ def command_key_url(_: argparse.Namespace) -> None:
     print(KEY_URL)
 
 
+def command_status(args: argparse.Namespace) -> None:
+    payload = _status_payload()
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+        return
+    print(json.dumps(payload, indent=2, sort_keys=True))
+
+
+def command_slots_list(args: argparse.Namespace) -> None:
+    payload = _doctor_payload()
+    result = {
+        "slots_available": payload["slots_available"],
+        "slots_path": payload["slots_path"],
+        "slots": payload["slots"],
+    }
+    if args.json:
+        print(json.dumps(result, indent=2, sort_keys=True))
+        return
+    print(json.dumps(result, indent=2, sort_keys=True))
+
+
+def command_slots_remove(args: argparse.Namespace) -> None:
+    ensure_dirs()
+    slots_path = STATE_DIR / "slots.json"
+    existing = _read_existing_slots(slots_path)
+    updated = [item for item in existing if item["slot"] != args.slot]
+    if len(updated) == len(existing):
+        raise SystemExit(f"No slot named {args.slot}")
+    slots_path.write_text(json.dumps(updated, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"status": "removed", "slot": args.slot, "slots_path": str(slots_path)}, indent=2, sort_keys=True))
+
+
+def _list_run_records(limit: int = 20) -> list[dict]:
+    rows: list[dict] = []
+    if not RUNS_DIR.exists():
+        return rows
+    for path in sorted(RUNS_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]:
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(data, dict):
+            continue
+        rows.append({
+            "artifact": str(path),
+            "timestamp": data.get("timestamp"),
+            "status": data.get("status"),
+            "task": data.get("task"),
+            "task_class": data.get("task_class"),
+            "slot": data.get("slot"),
+            "output_path": data.get("output_path"),
+        })
+    return rows
+
+
+def command_runs_list(args: argparse.Namespace) -> None:
+    rows = _list_run_records(limit=args.limit)
+    print(json.dumps({"runs": rows}, indent=2, sort_keys=True))
+
+
+def command_runs_show(args: argparse.Namespace) -> None:
+    path = Path(args.artifact).expanduser()
+    if not path.exists():
+        raise SystemExit(f"Run artifact not found: {path}")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    print(json.dumps(data, indent=2, sort_keys=True))
+
+
 def _doctor_payload(slots_path: Path | None = None, slots_json: str = "") -> dict:
     ensure_dirs()
     resolved_slots_path = slots_path if slots_path else (STATE_DIR / "slots.json")
@@ -519,6 +587,41 @@ def _doctor_payload(slots_path: Path | None = None, slots_json: str = "") -> dic
         "slots_path": str(resolved_slots_path),
         "default_model": DEFAULT_MODEL,
         "slots": slot_rows,
+    }
+
+
+def _last_provider_event() -> dict:
+    if not PROVIDER_LOG.exists():
+        return {}
+    try:
+        lines = [line for line in PROVIDER_LOG.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            return {}
+        data = json.loads(lines[-1])
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _status_payload() -> dict:
+    doctor = _doctor_payload()
+    sessions_index = _load_sessions_index()
+    last_session = str(sessions_index.get("last_session", "") or "").strip()
+    session_path = _session_path(last_session) if last_session else None
+    session_state = _load_session_state(session_path) if session_path else {}
+    last_provider = _last_provider_event()
+    return {
+        "default_model": doctor["default_model"],
+        "slots_available": doctor["slots_available"],
+        "current_slot": session_state.get("slot") or (doctor["slots"][0]["slot"] if doctor["slots"] else None),
+        "last_session": last_session or None,
+        "last_session_path": str(session_path) if session_path and session_path.exists() else None,
+        "last_source_mode": session_state.get("source_mode") or None,
+        "last_context_budget": session_state.get("context_budget") or None,
+        "last_provider_status": last_provider.get("status"),
+        "last_provider_error_class": last_provider.get("error_class"),
+        "last_provider_task": last_provider.get("task"),
+        "next_action": status_next_action(str(last_provider.get("status") or "success")),
     }
 
 
@@ -657,19 +760,28 @@ def command_help(_: argparse.Namespace) -> None:
     print("3. Verify readiness")
     print("   elgoog doctor --json")
     print()
-    print("4. Start an interactive repo session")
+    print("4. Check current state")
+    print("   elgoog status --json")
+    print()
+    print("5. Start an interactive repo session")
     print("   elgoog session --repo . --slot gemini_slot_1")
     print()
-    print("5. Resume the last saved session")
+    print("6. Resume the last saved session")
     print("   elgoog resume")
     print()
-    print("6. Understand the current repo in one shot")
+    print("7. Understand the current repo in one shot")
     print("   elgoog understand --repo . --slot gemini_slot_1 --json")
     print()
-    print("7. Extract TODOs from notes")
+    print("8. Inspect saved slots")
+    print("   elgoog slots list --json")
+    print()
+    print("9. Inspect recent runs")
+    print("   elgoog runs list")
+    print()
+    print("10. Extract TODOs from notes")
     print("   elgoog todos --file ./notes.md --slot gemini_slot_1 --json")
     print()
-    print("8. Inspect outputs in the optional web surface")
+    print("11. Inspect outputs in the optional web surface")
     print("   elgoog web")
     print()
     print(_style("Notes", ANSI_BOLD) + ":")
@@ -1336,11 +1448,24 @@ def build_parser() -> argparse.ArgumentParser:
     auth_add.add_argument("--api-key", help="Explicit Gemini API key")
     auth_add.set_defaults(func=command_auth_add)
 
+    slots = sub.add_parser("slots", help="Inspect or modify saved slots")
+    slots_sub = slots.add_subparsers(dest="slots_command", required=True)
+    slots_list = slots_sub.add_parser("list", help="List saved slots")
+    slots_list.add_argument("--json", action="store_true")
+    slots_list.set_defaults(func=command_slots_list)
+    slots_remove = slots_sub.add_parser("remove", help="Remove a saved slot")
+    slots_remove.add_argument("slot", help="Slot name to remove")
+    slots_remove.set_defaults(func=command_slots_remove)
+
     key_url = sub.add_parser("key-url", help="Print the Gemini API key creation URL")
     key_url.set_defaults(func=command_key_url)
 
     help_parser = sub.add_parser("help", help="Show the short first-use command map")
     help_parser.set_defaults(func=command_help)
+
+    status = sub.add_parser("status", help="Show current CLI/session/provider state")
+    status.add_argument("--json", action="store_true")
+    status.set_defaults(func=command_status)
 
     web = sub.add_parser("web", help="Start the optional local web surface")
     web.add_argument("--open-browser", action="store_true", help="Open the browser automatically")
@@ -1383,6 +1508,15 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--slots-json", default="", help="Inline JSON array of slots")
     doctor.add_argument("--json", action="store_true")
     doctor.set_defaults(func=command_doctor)
+
+    runs = sub.add_parser("runs", help="Inspect saved run artifacts")
+    runs_sub = runs.add_subparsers(dest="runs_command", required=True)
+    runs_list = runs_sub.add_parser("list", help="List recent run artifacts")
+    runs_list.add_argument("--limit", type=int, default=10)
+    runs_list.set_defaults(func=command_runs_list)
+    runs_show = runs_sub.add_parser("show", help="Show a run artifact")
+    runs_show.add_argument("artifact", help="Path to run artifact JSON")
+    runs_show.set_defaults(func=command_runs_show)
 
     run = sub.add_parser("run", help="Run a Gemini-first task")
     run.add_argument("--text", help="Input text")
