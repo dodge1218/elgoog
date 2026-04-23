@@ -562,39 +562,32 @@ def command_welcome(_: argparse.Namespace) -> None:
 
 
 def command_onboard(args: argparse.Namespace) -> None:
-    print_banner()
-    print()
-    payload = _doctor_payload()
-    print(_style("Onboarding", ANSI_BOLD))
-    print("Elgoog is a CLI-first Gemini workbench for repo understanding, work recovery, and bounded planning.")
-    print("It is file-backed, provenance-first, and explicit about auth and failure states.")
-    print()
-    print(_style("Default model", ANSI_BOLD) + f": {payload['default_model']}")
-    print(_style("Slots available", ANSI_BOLD) + f": {payload['slots_available']}")
-    print(_style("Slots path", ANSI_BOLD) + f": {payload['slots_path']}")
-    if payload["slots_available"] == 0:
-        print()
-        print(_style("No Gemini slots configured yet.", ANSI_BOLD))
-        print(_style("Create key", ANSI_BOLD) + f": {KEY_URL}")
-        print(_style("Then run", ANSI_BOLD) + ": elgoog auth add")
-        print()
-        print(_style("Recommended next step", ANSI_BOLD) + ":")
-        print("elgoog auth add")
-        print()
-        print(_style("Optional later", ANSI_BOLD) + ":")
-        print("elgoog web")
-        return
+    command_welcome(args)
 
-    print()
-    print(_style("Recommended next step", ANSI_BOLD) + ":")
+
+def _default_args_for_slot(slot_name: str) -> argparse.Namespace:
+    return argparse.Namespace(
+        text="",
+        file="",
+        repo=".",
+        github="",
+        name="",
+        context_budget="medium",
+        slot=slot_name,
+        slots_path=None,
+        slots_json="",
+        api_key=None,
+        model=DEFAULT_MODEL,
+    )
+
+
+def command_default_entry() -> None:
+    payload = _doctor_payload()
+    if payload["slots_available"] == 0:
+        command_onboard(argparse.Namespace())
+        return
     preferred_slot = payload["slots"][0]["slot"]
-    print(f"elgoog session --repo . --slot {preferred_slot}")
-    print()
-    print(_style("Optional commands", ANSI_BOLD) + ":")
-    print("- elgoog doctor --json")
-    print("- elgoog resume")
-    print("- elgoog web")
-    print(_style("Tip", ANSI_BOLD) + ": run `elgoog help` if you want the short command map again.")
+    command_session(_default_args_for_slot(preferred_slot))
 
 
 def command_web(args: argparse.Namespace) -> None:
@@ -1364,7 +1357,7 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = build_parser()
     if len(sys.argv) == 1:
-        command_welcome(argparse.Namespace())
+        command_default_entry()
         return
     if sys.argv[1] == "/help":
         sys.argv[1] = "help"

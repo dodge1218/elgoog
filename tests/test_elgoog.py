@@ -151,6 +151,14 @@ class ParserTests(unittest.TestCase):
         self.assertTrue(args.json)
 
 
+class DefaultFlowTests(unittest.TestCase):
+    def test_default_args_for_slot_uses_repo_session_defaults(self) -> None:
+        args = elgoog._default_args_for_slot("work")
+        self.assertEqual(args.repo, ".")
+        self.assertEqual(args.slot, "work")
+        self.assertEqual(args.context_budget, "medium")
+
+
 class SessionTests(unittest.TestCase):
     def test_build_compaction_summary_keeps_recent_turns(self) -> None:
         turns = [

@@ -168,7 +168,9 @@ Fastest first-run path:
 elgoog
 ```
 
-That prints the short first-use command map. It does not launch the browser.
+If a slot is already configured, that drops you straight into an interactive repo session for the current directory.
+
+If no slot is configured, it falls back to onboarding.
 
 If you only want the key flow:
 
@@ -207,6 +209,12 @@ If you want the shortest path to a working local setup:
    - `elgoog export`
 7. optionally use the web surface later for setup and inspection:
    - `elgoog web`
+
+If you want the starter command map explicitly:
+
+```bash
+elgoog onboard
+```
 
 ## CLI examples
 
