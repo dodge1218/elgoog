@@ -120,6 +120,7 @@ elgoog auth login
 elgoog auth add
 elgoog session
 elgoog resume
+elgoog export
 elgoog recover
 elgoog understand
 elgoog todos
@@ -184,7 +185,9 @@ If you want the shortest path to a working local setup:
    - `elgoog session --repo . --slot gemini_slot_1`
 5. resume later:
    - `elgoog resume`
-5. optionally use the web surface later for setup and inspection:
+6. export a saved session bundle:
+   - `elgoog export`
+7. optionally use the web surface later for setup and inspection:
    - `elgoog web`
 
 ## CLI examples
@@ -201,6 +204,8 @@ Task-native commands:
 elgoog session --repo . --slot gemini_slot_1
 
 elgoog resume
+
+elgoog export
 
 elgoog recover --text "I have notes and a messy repo state. Recover the next bounded steps." --slot gemini_slot_1 --json
 
@@ -253,6 +258,7 @@ In-session commands:
 /sources
 /last
 /compact
+/export
 /clear
 /exit
 ```
@@ -270,6 +276,15 @@ What `elgoog resume` does:
 - restores the last saved session by default
 - or restores a named session with `--name`
 - reuses saved repo/file/GitHub source details unless you override them
+
+What `elgoog export` does:
+
+- exports the last saved session by default
+- or exports a named session with `--name`
+- writes:
+  - JSON state bundle
+  - readable markdown transcript
+- stores both under `outputs/`
 
 What `/doctor` does in-session:
 

@@ -143,6 +143,13 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(args.name, "demo")
         self.assertEqual(args.slot, "work")
 
+    def test_export_parser_exists(self) -> None:
+        parser = elgoog.build_parser()
+        args = parser.parse_args(["export", "--name", "demo", "--json"])
+        self.assertEqual(args.command, "export")
+        self.assertEqual(args.name, "demo")
+        self.assertTrue(args.json)
+
 
 class SessionTests(unittest.TestCase):
     def test_build_compaction_summary_keeps_recent_turns(self) -> None:
@@ -183,6 +190,22 @@ class SessionTests(unittest.TestCase):
 
     def test_resolve_resume_name_prefers_explicit_name(self) -> None:
         self.assertEqual(elgoog._resolve_resume_name("custom"), "custom")
+
+    def test_render_session_export_markdown(self) -> None:
+        state = {
+            "name": "demo",
+            "updated_at": "2026-04-22T20:00:00-04:00",
+            "source_mode": "repo",
+            "context_budget": "medium",
+            "input_repo_path": ".",
+            "summary": "prior summary",
+            "turns": [{"user": "what now", "assistant": "inspect elgoog.py"}],
+        }
+        md = elgoog._render_session_export_markdown(state)
+        self.assertIn("# Elgoog Session Export", md)
+        self.assertIn("## Summary", md)
+        self.assertIn("## Transcript", md)
+        self.assertIn("inspect elgoog.py", md)
 
 
 if __name__ == "__main__":

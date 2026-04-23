@@ -718,6 +718,55 @@ def _resolve_resume_name(name: str = "") -> str:
     return last_name
 
 
+def _session_export_paths(name: str) -> tuple[Path, Path]:
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stem = f"elgoog-session-{_slugify_session_name(name)}-{stamp}"
+    return OUTPUTS_DIR / f"{stem}.json", OUTPUTS_DIR / f"{stem}.md"
+
+
+def _render_session_export_markdown(state: dict) -> str:
+    lines = ["# Elgoog Session Export", ""]
+    lines.append(f"- Session: `{state.get('name', 'unknown')}`")
+    lines.append(f"- Updated: `{state.get('updated_at', 'unknown')}`")
+    lines.append(f"- Source mode: `{state.get('source_mode', 'unknown')}`")
+    lines.append(f"- Context budget: `{state.get('context_budget', 'unknown')}`")
+    if state.get("input_repo_path"):
+        lines.append(f"- Repo: `{state['input_repo_path']}`")
+    if state.get("input_file_path"):
+        lines.append(f"- File: `{state['input_file_path']}`")
+    if state.get("input_github_repo_url"):
+        lines.append(f"- GitHub: `{state['input_github_repo_url']}`")
+    lines.append("")
+    summary = str(state.get("summary", "") or "").strip()
+    if summary:
+        lines.extend(["## Summary", "", summary, ""])
+    turns = state.get("turns", []) if isinstance(state.get("turns"), list) else []
+    lines.extend(["## Transcript", ""])
+    if not turns:
+        lines.append("_No turns saved._")
+        return "\n".join(lines).rstrip() + "\n"
+    for idx, turn in enumerate(turns, start=1):
+        lines.append(f"### Turn {idx}")
+        lines.append("")
+        lines.append("**User**")
+        lines.append("")
+        lines.append(str(turn.get("user", "")).strip())
+        lines.append("")
+        lines.append("**Assistant**")
+        lines.append("")
+        lines.append(str(turn.get("assistant", "")).strip())
+        lines.append("")
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def _export_session_bundle(name: str, state: dict) -> tuple[Path, Path]:
+    ensure_dirs()
+    json_path, md_path = _session_export_paths(name)
+    json_path.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    md_path.write_text(_render_session_export_markdown(state), encoding="utf-8")
+    return json_path, md_path
+
+
 def _build_compaction_summary(turns: list[dict], *, keep_last: int = 2) -> tuple[str, list[dict]]:
     if len(turns) <= keep_last:
         return "", turns
@@ -765,6 +814,7 @@ def _print_session_help() -> None:
     print("/sources  show current source details")
     print("/last     print the last assistant response again")
     print("/compact  summarize earlier turns and keep the last 2")
+    print("/export   write a session bundle to outputs/")
     print("/clear    clear all turns and summary")
     print("/exit     save and exit")
 
@@ -867,6 +917,29 @@ def command_session(args: argparse.Namespace) -> None:
                 print(last_response)
             else:
                 print("No prior response in this session.")
+            continue
+        if user_text == "/export":
+            export_state = {
+                "name": session_name,
+                "created_at": state.get("created_at") or now_iso(),
+                "updated_at": now_iso(),
+                "summary": summary,
+                "turns": turns,
+                "last_response": last_response,
+                "source_mode": source_manifest["source_mode"],
+                "context_budget": context_budget,
+                "slot": args.slot,
+                "input_file_path": file_path or None,
+                "input_repo_path": repo_path or None,
+                "input_github_repo_url": github_repo_url or None,
+            }
+            json_path, md_path = _export_session_bundle(session_name, export_state)
+            print(json.dumps({
+                "status": "exported",
+                "session": session_name,
+                "json_path": str(json_path),
+                "markdown_path": str(md_path),
+            }, indent=2, sort_keys=True))
             continue
         if user_text == "/clear":
             turns = []
@@ -979,6 +1052,26 @@ def command_resume(args: argparse.Namespace) -> None:
         model=args.model,
     )
     command_session(resumed_args)
+
+
+def command_export(args: argparse.Namespace) -> None:
+    session_name = _resolve_resume_name(str(getattr(args, "name", "") or ""))
+    session_path = _session_path(session_name)
+    state = _load_session_state(session_path)
+    if not state:
+        raise SystemExit(f"No saved Elgoog session found at {session_path}")
+    json_path, md_path = _export_session_bundle(session_name, state)
+    payload = {
+        "status": "exported",
+        "session": session_name,
+        "state_file": str(session_path),
+        "json_path": str(json_path),
+        "markdown_path": str(md_path),
+    }
+    if args.json:
+        print(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        print(json.dumps(payload, indent=2, sort_keys=True))
 
 def command_doctor(args: argparse.Namespace) -> None:
     slots_path = Path(args.slots_path).expanduser() if args.slots_path else (STATE_DIR / "slots.json")
@@ -1216,6 +1309,11 @@ def build_parser() -> argparse.ArgumentParser:
     resume.add_argument("--api-key", help="Explicit Gemini API key")
     resume.add_argument("--model", default=DEFAULT_MODEL, help="Gemini model")
     resume.set_defaults(func=command_resume)
+
+    export = sub.add_parser("export", help="Export the last saved session or a named session")
+    export.add_argument("--name", help="Optional saved session name")
+    export.add_argument("--json", action="store_true")
+    export.set_defaults(func=command_export)
 
     doctor = sub.add_parser("doctor", help="Show auth and slot readiness")
     doctor.add_argument("--slots-path", help="Path to slots JSON")

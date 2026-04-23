@@ -30,6 +30,10 @@
   - `/doctor`
   - clearer failure blocks
   - explicit next-action guidance
+- added session export
+  - `/export`
+  - `elgoog export`
+  - JSON + markdown bundle written to `outputs/`
 
 ## Current read
 
