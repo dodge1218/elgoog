@@ -8,6 +8,7 @@ They are meant to show:
 - repo-native input handling
 - context-budget behavior
 - readable artifact output
+- interactive CLI session flow
 
 ## Included examples
 
@@ -45,8 +46,30 @@ Why it matters:
 - shows bounded execution-oriented output
 - demonstrates a wider context budget when the task needs it
 
+### Interactive repo session
+
+Source commands:
+
+```bash
+elgoog session --repo . --slot myb
+elgoog resume
+elgoog export --json
+```
+
+Artifact:
+
+- `example-session-repo-flow.md`
+
+Why it matters:
+
+- shows the real terminal-first path
+- shows explicit compaction and resume behavior
+- shows exportable session artifacts instead of hidden memory
+
 ## Notes
 
 These are real outputs, not hand-written examples.
 
 Provider-side transient errors are also part of the proof story. Elgoog records them explicitly in run artifacts instead of collapsing them into vague failure noise.
+
+Local screenshots are intentionally not tracked in the repo yet. The product surface is still changing, and stale screenshots create confusion faster than they help.

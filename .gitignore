@@ -12,3 +12,4 @@ state/
 server.log
 
 .DS_Store
+examples/screenshots/

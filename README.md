@@ -359,6 +359,11 @@ Real example outputs live in:
 - [examples/README.md](examples/README.md)
 - [examples/example-understand-local-repo-small.md](examples/example-understand-local-repo-small.md)
 - [examples/example-recover-local-repo-medium.md](examples/example-recover-local-repo-medium.md)
+- [examples/example-session-repo-flow.md](examples/example-session-repo-flow.md)
+
+Release checklist:
+
+- [RELEASE.md](RELEASE.md)
 
 ## Runtime model
 
@@ -416,6 +421,7 @@ Working now:
 - copy/export
 - file-backed manifests
 - basic local test coverage
+- interactive session + resume + export
 
 Still missing before a serious public release:
 

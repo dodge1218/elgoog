@@ -34,6 +34,10 @@
   - `/export`
   - `elgoog export`
   - JSON + markdown bundle written to `outputs/`
+- added release hardening docs
+  - session flow example
+  - release checklist
+  - local screenshots ignored
 
 ## Current read
 
